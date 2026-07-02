@@ -1,0 +1,32 @@
+#!/bin/sh
+# Auto-version hook. Reads the conventional-commit type of THIS commit and
+# bumps the app semver (MAJOR.MINOR.PATCH) accordingly, staging the updated
+# manifests INTO the same commit so the version always travels with the change.
+#
+#   feat            -> minor      fix | perf | refactor -> patch
+#   <type>!: / BREAKING CHANGE -> major
+#   docs|test|chore|ci|style|build|<non-conventional> -> no bump
+#
+# Installed via `npm run hooks:install` (git config core.hooksPath .githooks).
+# Args: $1 = commit message file · $2 = source (message|template|merge|squash|
+# commit) · $3 = sha (amend). Fail-soft everywhere: never block a commit.
+
+# Skip merges, squashes, and amends (no new logical change to version).
+case "$2" in
+  merge | squash | commit) exit 0 ;;
+esac
+
+# Need node + the version script; degrade silently if either is absent.
+command -v node >/dev/null 2>&1 || exit 0
+[ -f scripts/version.mjs ] || exit 0
+
+bump=$(node scripts/version.mjs infer "$(cat "$1")" 2>/dev/null)
+[ "$bump" = "none" ] || [ -z "$bump" ] && exit 0
+
+node scripts/version.mjs "$bump" >/dev/null 2>&1 || exit 0
+# Stage whichever sync targets exist (each add is independent so a missing
+# optional manifest never aborts the others).
+for f in package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock; do
+  [ -f "$f" ] && git add "$f" >/dev/null 2>&1
+done
+exit 0

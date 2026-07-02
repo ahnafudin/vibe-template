@@ -1,0 +1,23 @@
+# Dependencies / build output
+node_modules/
+dist/
+build/
+target/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Beads / Dolt (kept here up front so `bd init` never has to edit .gitignore)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+
+# Claude Code ephemeral git worktrees
+.claude/worktrees/

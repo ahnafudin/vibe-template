@@ -1,0 +1,20 @@
+{
+  "name": "my-project",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TODO:fill — one-line project description",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "postinstall": "node scripts/install-hooks.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "version:get": "node scripts/version.mjs get",
+    "version:sync": "node scripts/version.mjs sync",
+    "version:patch": "node scripts/version.mjs patch",
+    "version:minor": "node scripts/version.mjs minor",
+    "version:major": "node scripts/version.mjs major"
+  }
+}
