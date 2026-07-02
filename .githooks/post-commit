@@ -29,7 +29,7 @@ done
 bump=$(node scripts/version.mjs infer "$(git log -1 --format=%B)" 2>/dev/null)
 [ "$bump" = "none" ] || [ -z "$bump" ] && exit 0
 
-MANIFESTS="package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock"
+MANIFESTS="package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock composer.json pyproject.toml VERSION"
 for f in $MANIFESTS; do
   if [ -f "$f" ] && ! git diff --quiet HEAD -- "$f" 2>/dev/null; then
     echo "[version] skipped: $f has local edits (bump manually: npm run version:$bump)" >&2

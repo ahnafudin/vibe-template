@@ -1,10 +1,19 @@
 # Versioning
 
-Semantic versioning (MAJOR.MINOR.PATCH). **`package.json` is the single source of truth**;
-`scripts/version.mjs` propagates it to any optional sync targets that exist (Tauri config,
-Cargo manifests — extend `writeAll()` in the script for other stacks). Never hand-edit the
-version in just one file. Writes are two-phase (validate everything, then flush), so a
-failure can never leave the manifests half-synced.
+Semantic versioning (MAJOR.MINOR.PATCH). **`package.json` is the single source of truth**
+(it exists in every copy of this template as the tooling manifest, whatever the app
+language); `scripts/version.mjs` propagates it to any optional sync targets that exist —
+extend `writeAll()` for anything else. Never hand-edit the version in just one file.
+Writes are two-phase (validate everything, then flush), so a failure can never leave the
+manifests half-synced.
+
+| Stack | Synced target | Notes |
+|---|---|---|
+| JS/TS | `package.json` | the source of truth itself |
+| Rust / Tauri | `src-tauri/tauri.conf.json`, `Cargo.toml`, `Cargo.lock` | `[package]`-scoped; workspace-inherited version skipped |
+| PHP | `composer.json` | only when it declares `"version"` — Packagist convention omits it, and that omission is respected |
+| Python | `pyproject.toml` | `[project]` (PEP 621) or `[tool.poetry]`; skipped when `dynamic = ["version"]` |
+| Go / any | `VERSION` file at the repo root | created by you once; read via `go:embed`, `-ldflags`, or at runtime |
 
 ## Auto-bump on commit
 

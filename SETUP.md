@@ -13,7 +13,10 @@ Then fill the placeholders — search for `TODO:fill`:
       Naming conventions · Conventions · Commands · core-layer name in the "Core-first" rule ·
       design-token pointer in the "Avoid AI-slop design" rule
 - [ ] `package.json` — `name` (also drives the beads issue prefix if you init before renaming:
-      prefer renaming FIRST)
+      prefer renaming FIRST). Non-JS project? Keep this file anyway — it is the TOOLING
+      manifest (setup + versioning); add your language's real manifest beside it
+      (`composer.json`, `pyproject.toml`, `go.mod` + a root `VERSION` file — all auto-synced,
+      see `docs/VERSIONING.md`)
 - [ ] `docs/PRD.md` — problem, goals, scope, risks, guardrails
 - [ ] `docs/ARCHITECTURE.md` — layers + first decisions
 - [ ] `docs/TASKS.md` — phase 1 checklist

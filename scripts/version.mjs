@@ -24,11 +24,21 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PKG = join(ROOT, "package.json");
 
-// Optional sync targets — each is silently skipped when the file is absent,
-// so the same script works for a plain web project and a Tauri/Rust one.
+// Optional sync targets — each is silently skipped when the file is absent, so
+// the same script serves a plain web project, Tauri/Rust, PHP, Python, or Go:
+//   Rust/Tauri → src-tauri/{tauri.conf.json,Cargo.toml,Cargo.lock}
+//   PHP        → composer.json (only when it declares a "version" — Packagist
+//                convention is to omit it, so absence is respected, not added)
+//   Python     → pyproject.toml ([project] or [tool.poetry]; skipped when the
+//                version is declared dynamic)
+//   Go / any   → a bare VERSION file at the repo root (read it via go:embed or
+//                inject with -ldflags at build time)
 const TAURI_CONF = join(ROOT, "src-tauri", "tauri.conf.json");
 const CARGO_TOML = join(ROOT, "src-tauri", "Cargo.toml");
 const CARGO_LOCK = join(ROOT, "src-tauri", "Cargo.lock");
+const COMPOSER_JSON = join(ROOT, "composer.json");
+const PYPROJECT_TOML = join(ROOT, "pyproject.toml");
+const VERSION_FILE = join(ROOT, "VERSION");
 
 const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)$/;
 
@@ -160,6 +170,46 @@ function planCargoLock(version) {
   return { path: CARGO_LOCK, label: "src-tauri/Cargo.lock", next: raw.replace(re, `$1${version}$2`) };
 }
 
+/** Plan composer.json (PHP). Packagist convention is to OMIT the version field,
+ *  so a composer.json without one is respected (skipped), never given one. */
+function planComposerJson(version) {
+  const raw = readFileSync(COMPOSER_JSON, "utf8");
+  if (!/"version":\s*"[^"]*"/.test(raw)) return null;
+  return {
+    path: COMPOSER_JSON,
+    label: "composer.json",
+    next: raw.replace(/"version":\s*"[^"]*"/, `"version": "${version}"`),
+  };
+}
+
+/** Plan pyproject.toml (Python): `[project]` (PEP 621) or `[tool.poetry]`.
+ *  Skipped when the version is declared dynamic (a build backend owns it). */
+function planPyprojectToml(version) {
+  const raw = readFileSync(PYPROJECT_TOML, "utf8");
+  const sec =
+    /^\[project\][^\r\n]*\r?\n(?:(?!\s*\[)[^\r\n]*\r?\n?)*/m.exec(raw) ??
+    /^\[tool\.poetry\][^\r\n]*\r?\n(?:(?!\s*\[)[^\r\n]*\r?\n?)*/m.exec(raw);
+  if (!sec) return null;
+  if (/^dynamic\s*=\s*\[[^\]]*["']version["']/m.test(sec[0])) {
+    process.stderr.write("[version] pyproject.toml version is dynamic — skipping\n");
+    return null;
+  }
+  const m = /^version\s*=\s*(["'])[^"']*\1/m.exec(sec[0]);
+  if (!m) return null;
+  const patched = sec[0].replace(m[0], `version = ${m[1]}${version}${m[1]}`);
+  return {
+    path: PYPROJECT_TOML,
+    label: "pyproject.toml",
+    next: raw.slice(0, sec.index) + patched + raw.slice(sec.index + sec[0].length),
+  };
+}
+
+/** Plan a bare root VERSION file (Go or any language: go:embed / -ldflags /
+ *  read-at-runtime). Only synced when the file already exists. */
+function planVersionFile(version) {
+  return { path: VERSION_FILE, label: "VERSION", next: `${version}\n` };
+}
+
 /** Write `version` into every manifest that exists; returns the changed files.
  *  Two-phase: all reads/validation first (throws BEFORE any write), then flush. */
 export function writeAll(version) {
@@ -170,6 +220,9 @@ export function writeAll(version) {
     plans.push(planCargoToml(version));
     plans.push(planCargoLock(version));
   }
+  if (existsSync(COMPOSER_JSON)) plans.push(planComposerJson(version));
+  if (existsSync(PYPROJECT_TOML)) plans.push(planPyprojectToml(version));
+  if (existsSync(VERSION_FILE)) plans.push(planVersionFile(version));
   const changed = [];
   for (const p of plans) {
     if (p && writeIfChanged(p.path, p.next)) changed.push(p.label);

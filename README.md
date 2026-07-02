@@ -15,6 +15,24 @@ starts with the right rules, the right docs, and a working issue tracker: you ty
 | **Auto-versioning** | Conventional-commit hook bumps semver in `package.json` (+ optional sync targets) inside the same commit. |
 | `scripts/setup.mjs` | One-shot, idempotent, ordered bootstrap (order matters — see below). |
 
+## Language support
+
+The template is **language-agnostic by design** — the rules, docs structure, archive
+contract, and beads wiring don't care what the app is written in. Node is only the
+*tooling* runtime (`npm run setup`, the version script): non-JS projects simply keep the
+small `package.json` as their tooling manifest next to the real one.
+
+| App language | Works? | Version auto-sync |
+|---|---|---|
+| JavaScript / TypeScript | native | `package.json` (the source of truth) |
+| Rust / Tauri | native | `src-tauri/tauri.conf.json` + `Cargo.toml` + `Cargo.lock` |
+| PHP | yes | `composer.json` (only if it declares `"version"`) |
+| Python | yes | `pyproject.toml` (`[project]` / `[tool.poetry]`) |
+| Go (or anything else) | yes | root `VERSION` file (`go:embed` / `-ldflags`) |
+
+Fill `CLAUDE.md`'s Stack/Conventions/Core-first placeholders with your language's rules —
+that is the only per-language work.
+
 ## Quick start
 
 ```bash
