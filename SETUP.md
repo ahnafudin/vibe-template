@@ -56,6 +56,16 @@ git pull
 npm run setup && bd dolt pull
 ```
 
+## Machine-level agent tooling (deliberately NOT in this template)
+
+Token/behavior optimizers for Claude Code — e.g. **rtk** (compresses CLI output before it
+enters context), **caveman** (terse response style), **ponytail** (write-less-code bias) —
+are all **per-machine** installs (global hooks/plugins in `~/.claude`), not per-project
+files. They compose with this template but do not belong in it: a repo must work on a
+machine that has none of them. Install/skip them per machine to taste. One warning if you
+use caveman: never run `/caveman-compress` on this template's `CLAUDE.md` — it rewrites
+lossily and the contracts here are load-bearing.
+
 ## Day-to-day rhythm (any machine)
 
 - Session start: `git pull` + `bd dolt pull`
