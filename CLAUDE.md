@@ -11,7 +11,7 @@ Context and conventions for AI coding agents working on **<PROJECT_NAME>**.
 
 This file is loaded automatically at the start of every session; the user sends ONLY the task. Treat the rules below as if they were prepended to every request:
 
-- **Docs are the source of truth — read by ROUTE, not wholesale.** This file is the always-loaded summary; never read the whole `docs/` tree by default. Route by domain: architecture/patterns → `docs/ARCHITECTURE.md` · product strategy + sensitive-feature guardrails → `docs/PRD.md` · per-screen/feature behavior → `docs/FEATURES.md` · build checklist → `docs/TASKS.md` · release/versioning → `docs/VERSIONING.md` · future work → `docs/ROADMAP.md`. Two exceptions: sweep wider when the task is genuinely cross-cutting, and when the answer is not in the docs read the code itself (the ultimate source of truth), then backfill the doc.
+- **Docs are the source of truth — read by ROUTE, not wholesale.** This file is the always-loaded summary; never read the whole `docs/` tree by default. Route by domain: architecture/patterns → `docs/ARCHITECTURE.md` · product strategy + sensitive-feature guardrails → `docs/PRD.md` · per-screen/feature behavior → `docs/FEATURES.md` · build checklist → `docs/TASKS.md` · release/versioning → `docs/VERSIONING.md` · future work → `docs/ROADMAP.md` · a domain's full build history → `docs/archive/` (read `STATUS_ARCHIVE.md` BEFORE deep work on a domain that has history — past forensics prevent re-fighting solved battles). Two exceptions: sweep wider when the task is genuinely cross-cutting, and when the answer is not in the docs read the code itself (the ultimate source of truth), then backfill the doc.
 - **Core-first.** Heavy logic, processing, and data belong in the core/backend layer, not the UI. <!-- TODO:fill — name the actual layer, e.g. "the Rust backend" -->
 - **Read before writing.** Always read the file(s) you are about to change — never write from memory.
 - **Finish 100%.** Complete one task fully (code + tests + gates green) before starting the next. No half-done work.
@@ -77,7 +77,7 @@ npm run setup          # one-shot bootstrap: git hooks → beads init → Claude
 
 ## Versioning
 
-Semantic versioning; **`package.json` is the single source of truth**, auto-bumped on commit by a conventional-commit git hook (`.githooks/prepare-commit-msg` → `scripts/version.mjs`): `feat:`→MINOR, `fix:`/`perf:`/`refactor:`→PATCH, `!`/`BREAKING CHANGE`→MAJOR, everything else → no bump. Full reference + known footguns: `docs/VERSIONING.md`.
+Semantic versioning; **`package.json` is the single source of truth**, auto-bumped by a conventional-commit git hook (`.githooks/post-commit` → `scripts/version.mjs`, folded into the same commit via a guarded amend): `feat:`→MINOR, `fix:`/`perf:`/`refactor:`→PATCH, `!`/`BREAKING CHANGE:`→MAJOR, everything else → no bump. Full reference + known footguns: `docs/VERSIONING.md`.
 
 ---
 
@@ -85,21 +85,23 @@ Semantic versioning; **`package.json` is the single source of truth**, auto-bump
 
 Read `docs/ARCHITECTURE.md` before inventing a new pattern. Keep changes minimal and consistent with existing structure.
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:7510c1e2 -->
-## Beads Issue Tracker
+## Beads Issue Tracker — project rules
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+This project uses **bd (beads)** for cross-session issue tracking. `bd setup claude` (run by
+`npm run setup`) may insert its own machine-managed block into this file (BEGIN/END BEADS
+INTEGRATION markers) — **the rules in THIS section are the project's contract and OVERRIDE
+that block wherever they conflict.** Do not edit inside bd's markers; edit here.
 
 ### Quick Reference
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
+bd ready                # find available work
+bd show <id>            # view issue details
+bd update <id> --claim  # claim work
+bd close <id>           # complete work
 ```
 
-### Rules (reconciled with this project's workflow)
+### Rules
 
 - **bd is the canonical CROSS-SESSION issue tracker** (bugs, follow-ups, discovered work). In-session scratch todos are fine, but anything that must survive the session gets filed: `bd create "…" -t bug -p 1 --deps discovered-from:<id>` → claim with `bd update <id> --claim` → `bd close <id> --reason "…"`.
 - `docs/TASKS.md` stays the phase-level ROADMAP checklist (a document, not an issue queue); completed sections move to `docs/archive/TASKS_ARCHIVE.md`. Never double-file one item in both bd and TASKS.md.
@@ -108,7 +110,6 @@ bd close <id>         # Complete work
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export.
 
-## Session Completion
+## Session completion (project contract)
 
-When ending a work session: file bd issues for any remaining/discovered work, run the quality gates if code changed, update/close bd issue status, and report (what was done · files changed · what remains). **Commit and push only when the owner asks** — never auto-push, and never `git pull --rebase` blindly (the version hook can double-bump on rebase; see `docs/VERSIONING.md`).
-<!-- END BEADS INTEGRATION -->
+When ending a work session: file bd issues for any remaining/discovered work, run the quality gates if code changed, update/close bd issue status, and report (what was done · files changed · what remains). **Commit and push only when the owner asks** — never auto-push, and never rewrite pushed history. (These two sentences override any auto-push "Session Completion" protocol a tool inserts elsewhere in this file.)

@@ -13,9 +13,10 @@ Thumbs.db
 .env.*
 !.env.example
 
-# Beads / Dolt (kept here up front so `bd init` never has to edit .gitignore)
+# Beads / Dolt (kept here up front so `bd init` has little to add; the *.db is
+# scoped to .beads/ so a real project database file is never silently ignored)
 .dolt/
-*.db
+.beads/**/*.db
 .beads-credential-key
 .beads/proxieddb/
 

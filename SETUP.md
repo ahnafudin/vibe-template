@@ -35,7 +35,9 @@ of this template).
 ```bash
 git clone <origin> && cd <project>
 npm install
-npm run setup                 # detects the committed .beads config; bootstraps the local DB
+npm run setup                 # re-applies the per-machine bits: git hooks, Claude hooks, dolt
+                              # remote — and runs `bd bootstrap` (NOT `bd init`) when it sees
+                              # the committed .beads config without a local DB
 bd dolt pull                  # pull existing issue data
 ```
 
@@ -46,7 +48,8 @@ bd dolt pull                  # pull existing issue data
 git log --oneline -3                       # look for "bd init: initialize beads issue tracking"
 git reset --soft HEAD~1 && git restore --staged .
 rm -rf .beads && git checkout -- .gitignore CLAUDE.md
-git pull                                   # plain pull, NOT --rebase (version-hook double-bump)
+rm -f AGENTS.md                            # bd's stock instruction file, if it created one
+git pull
 npm run setup && bd dolt pull
 ```
 
@@ -54,4 +57,9 @@ npm run setup && bd dolt pull
 
 - Session start: `git pull` + `bd dolt pull`
 - Session end: update/close bd issues; commit/push **only when you ask for it**
-- Never run `bd init` again — the workspace already exists.
+- Never run `bd init` manually — `npm run setup` decides (init on a brand-new project,
+  `bd bootstrap` on a fresh clone, skip when the workspace is already active).
+
+Note: `.claude/settings.json` already ships the Claude Code hooks (`bd prime` on
+SessionStart/PreCompact), so setup's `bd setup claude` step is normally a no-op check —
+it only self-heals when the hooks are missing.

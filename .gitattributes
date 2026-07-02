@@ -1,0 +1,4 @@
+# Git hooks and scripts must stay LF — /bin/sh on macOS/Linux rejects CRLF shebangs.
+.githooks/* text eol=lf
+*.sh text eol=lf
+*.mjs text eol=lf

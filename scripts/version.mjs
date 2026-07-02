@@ -9,10 +9,13 @@
 //   node scripts/version.mjs patch|minor|major   bump + write all manifests
 //   node scripts/version.mjs set 1.2.3           set an explicit version
 //   node scripts/version.mjs infer "<msg>"       print the bump a commit msg implies
-//   node scripts/version.mjs from-commit <msg|file>   infer + bump (the git hook path)
+//                                                (the .githooks/post-commit hook path)
+//   node scripts/version.mjs from-commit <msg|file>   convenience: infer + bump in one step
 //
 // Writes are targeted regex replacements (never a JSON reparse/reformat), so a
 // bump touches only the version string and produces a clean one-line diff.
+// `writeAll` is two-phase: every target is read + validated BEFORE any byte is
+// written, so a validation failure can never leave the manifests half-synced.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -57,9 +60,11 @@ export function nextVersion(current, bump) {
  * Map a conventional-commit message to the semver bump it implies:
  *   feat                       → minor
  *   fix | perf | refactor      → patch
- *   any type with `!` / a `BREAKING CHANGE` footer → major
+ *   `type!:` or a `BREAKING CHANGE:` footer (conventional header required) → major
  *   docs | test | chore | ci | style | build | (non-conventional) → null
- * Returns `null` when the commit should NOT bump the version.
+ * Returns `null` when the commit should NOT bump the version. A non-conventional
+ * message NEVER bumps — even if its body happens to mention "BREAKING CHANGE"
+ * (the footer token requires the colon, per the conventional-commits spec).
  */
 export function inferBump(message) {
   if (!message) return null;
@@ -68,8 +73,6 @@ export function inferBump(message) {
     .split(/\r?\n/)
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const breaking = /(^|\n)BREAKING[ -]CHANGE/.test(body);
-  if (breaking) return "major";
   const header = body
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -77,15 +80,17 @@ export function inferBump(message) {
   if (!header) return null;
   const m = /^([a-zA-Z]+)(\([^)]*\))?(!)?:/.exec(header);
   if (!m) return null;
-  if (m[3]) return "major"; // `type!: ...`
+  if (m[3] || /(^|\n)BREAKING[ -]CHANGE:/.test(body)) return "major"; // `type!:` / footer
   const type = m[1].toLowerCase();
   if (type === "feat") return "minor";
   if (type === "fix" || type === "perf" || type === "refactor") return "patch";
   return null;
 }
 
-// --- manifest IO (only write when the bytes actually change, so a no-op `sync`
-// never bumps an mtime and forces a needless rebuild) ---
+// --- manifest IO ---
+// Each `plan*` function reads + validates a target and returns
+// `{ path, label, next }` (or null to skip it) WITHOUT writing, so `writeAll`
+// can validate everything first and only then flush — pseudo-transactional.
 
 function writeIfChanged(path, next) {
   const prev = existsSync(path) ? readFileSync(path, "utf8") : null;
@@ -96,58 +101,78 @@ function writeIfChanged(path, next) {
 
 /** Replace the FIRST top-level `"version": "x.y.z"` (the package version sits
  *  before any nested object that could carry one) — preserves all formatting. */
-function setJsonVersion(path, version) {
+function planJsonVersion(path, label, version) {
   const raw = readFileSync(path, "utf8");
   if (!/"version":\s*"[^"]*"/.test(raw)) {
     throw new Error(`no "version" key found in ${path}`);
   }
-  const next = raw.replace(/"version":\s*"[^"]*"/, `"version": "${version}"`);
-  return writeIfChanged(path, next);
+  return { path, label, next: raw.replace(/"version":\s*"[^"]*"/, `"version": "${version}"`) };
 }
 
-/** Replace the `[package]` version (the first `version = "..."` in Cargo.toml,
- *  which precedes every other table — `[lib]`, `[features]`, … carry none). */
-function setCargoTomlVersion(version) {
+/** The `[package]` section of Cargo.toml: `{ text, start }`, or null. Scoped so
+ *  a dependency's `version = "…"` (or a `[[bin]]` name) can never be mistaken
+ *  for the package's own. */
+function cargoPackageSection(raw) {
+  const m = /^\[package\][^\r\n]*\r?\n(?:(?!\s*\[)[^\r\n]*\r?\n?)*/m.exec(raw);
+  return m ? { text: m[0], start: m.index } : null;
+}
+
+/** Plan the `[package]` version rewrite. Returns null (skip, with a note) when
+ *  the version is workspace-inherited — the workspace root owns it then. */
+function planCargoToml(version) {
   const raw = readFileSync(CARGO_TOML, "utf8");
-  if (!/^version = "[^"]*"/m.test(raw)) {
+  const sec = cargoPackageSection(raw);
+  if (!sec) throw new Error("no [package] section in src-tauri/Cargo.toml");
+  if (/^version\s*\.\s*workspace\s*=|^version\s*=\s*\{\s*workspace/m.test(sec.text)) {
+    process.stderr.write("[version] Cargo.toml version is workspace-inherited — skipping\n");
+    return null;
+  }
+  if (!/^version = "[^"]*"/m.test(sec.text)) {
     throw new Error("could not find the [package] version in Cargo.toml");
   }
-  const next = raw.replace(/^version = "[^"]*"/m, `version = "${version}"`);
-  return writeIfChanged(CARGO_TOML, next);
+  const patched = sec.text.replace(/^version = "[^"]*"/m, `version = "${version}"`);
+  return {
+    path: CARGO_TOML,
+    label: "src-tauri/Cargo.toml",
+    next: raw.slice(0, sec.start) + patched + raw.slice(sec.start + sec.text.length),
+  };
 }
 
-/** The crate's `[package] name` (first `name = "…"` in Cargo.toml). */
+/** The crate's `[package] name` (scoped to the [package] section). */
 function cargoCrateName() {
-  const m = /^name = "([^"]+)"/m.exec(readFileSync(CARGO_TOML, "utf8"));
+  const sec = cargoPackageSection(readFileSync(CARGO_TOML, "utf8"));
+  const m = sec && /^name = "([^"]+)"/m.exec(sec.text);
   return m ? m[1] : null;
 }
 
-/** Update the crate's own entry in Cargo.lock (best-effort; the lock is
+/** Plan the crate's own entry in Cargo.lock (best-effort; the lock is
  *  reconciled by cargo on the next build anyway). */
-function setCargoLockVersion(version) {
-  if (!existsSync(CARGO_LOCK)) return false;
+function planCargoLock(version) {
+  if (!existsSync(CARGO_LOCK)) return null;
   const crate = cargoCrateName();
-  if (!crate) return false;
+  if (!crate) return null;
   const raw = readFileSync(CARGO_LOCK, "utf8");
   // `\r?\n` so the multi-line match works on both LF and CRLF (Windows) locks.
   const re = new RegExp(
     `(\\[\\[package\\]\\]\\r?\\nname = "${crate}"\\r?\\nversion = ")[^"]*(")`,
   );
-  if (!re.test(raw)) return false;
-  return writeIfChanged(CARGO_LOCK, raw.replace(re, `$1${version}$2`));
+  if (!re.test(raw)) return null;
+  return { path: CARGO_LOCK, label: "src-tauri/Cargo.lock", next: raw.replace(re, `$1${version}$2`) };
 }
 
-/** Write `version` into every manifest that exists; returns the changed files. */
+/** Write `version` into every manifest that exists; returns the changed files.
+ *  Two-phase: all reads/validation first (throws BEFORE any write), then flush. */
 export function writeAll(version) {
   parseSemver(version); // validate before touching disk
-  const changed = [];
-  if (setJsonVersion(PKG, version)) changed.push("package.json");
-  if (existsSync(TAURI_CONF) && setJsonVersion(TAURI_CONF, version)) {
-    changed.push("src-tauri/tauri.conf.json");
-  }
+  const plans = [planJsonVersion(PKG, "package.json", version)];
+  if (existsSync(TAURI_CONF)) plans.push(planJsonVersion(TAURI_CONF, "src-tauri/tauri.conf.json", version));
   if (existsSync(CARGO_TOML)) {
-    if (setCargoTomlVersion(version)) changed.push("src-tauri/Cargo.toml");
-    if (setCargoLockVersion(version)) changed.push("src-tauri/Cargo.lock");
+    plans.push(planCargoToml(version));
+    plans.push(planCargoLock(version));
+  }
+  const changed = [];
+  for (const p of plans) {
+    if (p && writeIfChanged(p.path, p.next)) changed.push(p.label);
   }
   return changed;
 }
