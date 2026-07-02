@@ -65,9 +65,11 @@ try {
   if (current === ".githooks") {
     note("already installed (core.hooksPath=.githooks)");
   } else if (current.endsWith(".beads/hooks") || current.endsWith(".beads\\hooks")) {
-    // beads owns the chain — verify our hook actually survived inside it.
+    // beads owns the chain — verify our hook actually survived inside it
+    // (either the full hook text, or a delegator pointing at .githooks/).
     const chained = join(ROOT, ".beads", "hooks", HOOK);
-    if (existsSync(chained) && readFileSync(chained, "utf8").includes("version.mjs")) {
+    const chainedBody = existsSync(chained) ? readFileSync(chained, "utf8") : "";
+    if (chainedBody.includes("version.mjs") || chainedBody.includes(`.githooks/${HOOK}`)) {
       note(`beads owns the hook chain (${current}) — version hook is chained, leaving as is`);
     } else {
       note(`WARNING: beads owns the hook chain (${current}) but the auto-version ${HOOK} hook`);
