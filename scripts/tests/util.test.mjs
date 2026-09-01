@@ -4,11 +4,16 @@
 // to stop a misleading "not a git repository → run git init" suggestion).
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, describe, it } from "node:test";
 import {
   dubiousOwnership,
   hasShellMetachars,
+  isUnrenamedTemplate,
   NEEDS_SHELL,
+  PLACEHOLDER_NAME,
   norm,
   runTool,
   safeDirectoryHint,
@@ -172,5 +177,33 @@ describe("hasShellMetachars / runTool", () => {
     const r = runTool(process.execPath, ["--version"]);
     assert.equal(r.ok, true, r.out);
     assert.match(r.out, /^v\d+\./);
+  });
+});
+
+describe("isUnrenamedTemplate", () => {
+  const dirs = [];
+  after(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
+  const withName = (name) => {
+    const dir = mkdtempSync(join(tmpdir(), "vibe-name-"));
+    dirs.push(dir);
+    if (name !== null) writeFileSync(join(dir, "package.json"), JSON.stringify({ name, version: "0.1.0" }));
+    return dir;
+  };
+
+  it("is true while package.json still carries the placeholder", () => {
+    assert.equal(isUnrenamedTemplate(withName(PLACEHOLDER_NAME)), true);
+  });
+
+  it("is false once the project has a real name", () => {
+    assert.equal(isUnrenamedTemplate(withName("acme-invoices")), false);
+  });
+
+  it("is false when there is no package.json to read", () => {
+    // Never block a non-JS project that has not created the tooling manifest yet.
+    assert.equal(isUnrenamedTemplate(withName(null)), false);
+  });
+
+  it("guards THIS repo — the template must never ship a beads identity", () => {
+    assert.equal(isUnrenamedTemplate(), true, "package.json here must keep the placeholder name");
   });
 });

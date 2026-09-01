@@ -30,8 +30,11 @@ Then fill the placeholders — search for `TODO:fill`:
       "Avoid AI-slop design" rule
 - [ ] `CLAUDE.md` — project name only (everything else is imported from `AGENTS.md`; **do not copy
       rules here**)
-- [ ] `package.json` — `name` (also drives the beads issue prefix if you init before renaming:
-      prefer renaming FIRST). Non-JS project? Keep this file anyway — it is the TOOLING
+- [ ] `package.json` — **`name` first, before anything else.** While it is still `my-project`,
+      `npm run setup` deliberately REFUSES to run `bd init`: bd bakes the name into the issue
+      prefix and commits `.beads/` (a project_id and the Dolt sync remote), so initializing an
+      unrenamed copy would ship this template's identity to every project made from it.
+      Non-JS project? Keep this file anyway — it is the TOOLING
       manifest (setup, gates, versioning); add your language's real manifest beside it
       (`composer.json`, `pyproject.toml`, `go.mod` + a root `VERSION` file — all auto-synced,
       see `docs/VERSIONING.md`)
@@ -61,6 +64,14 @@ npm run agents:check    # CI/gate check: are they stale? (part of `npm run gate`
 Never hand-edit `GEMINI.md`, `CONVENTIONS.md`, `.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`,
 `.junie/` or `.github/copilot-instructions.md` — your changes are overwritten on the next sync.
 Commit the generated files: a fresh clone opened in Cursor must already have them.
+
+## Working on the TEMPLATE itself (not a project made from it)
+
+Leave `package.json`'s `name` as `my-project` and setup will keep skipping `bd init` — which is
+what you want: the template must never ship a `.beads/` workspace. If you want issue tracking for
+the template repo itself, run `bd init` by hand and keep `.beads/` out of git locally
+(`echo '.beads/' >> .git/info/exclude` — `.git/info/exclude` is not committed, so a real project
+still commits its own `.beads/config.yaml` for the second-machine flow).
 
 ## If git says "dubious ownership"
 

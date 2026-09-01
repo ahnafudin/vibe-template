@@ -27,7 +27,7 @@ loads the same contract instead of nothing.
 | `docs/STACK.md` | **Generated** per project: which framework was detected, where heavy logic belongs, the exact gate commands, framework conventions. The brief a fresh agent reads instead of guessing. |
 | `docs/` skeletons | `PRD` · `ARCHITECTURE` · `FEATURES` · `TASKS` · `ROADMAP` · `VERSIONING` — thin frames, not content. |
 | **Archive contract** | `docs/archive/STATUS_ARCHIVE.md` + `TASKS_ARCHIVE.md`: when work merges, its full story moves here and `AGENTS.md` keeps ≤ 1 bullet per domain — the always-loaded context never bloats. |
-| **Beads issue tracker** | Optional `bd` wiring with rules reconciled for this workflow: bd = cross-session issues, `docs/TASKS.md` = roadmap checklist, no auto-push. Silent when bd is not installed. |
+| **Beads issue tracker** | Optional `bd` wiring with rules reconciled for this workflow: bd = cross-session issues, `docs/TASKS.md` = roadmap checklist, no auto-push. Silent when bd is not installed, and refuses to initialise until you rename the project — bd commits an identity, which must not ship from a template. |
 | **Auto-versioning** | A conventional-commit hook bumps semver in `package.json` and syncs **every other manifest that exists** — inside the same commit. |
 | `scripts/setup.mjs` | One-shot, idempotent, ordered bootstrap (order matters — see below). |
 

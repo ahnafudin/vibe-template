@@ -127,6 +127,22 @@ export function writeIfChanged(path, next) {
   return true;
 }
 
+/**
+ * The name `package.json` ships with in this template.
+ *
+ * While it is still this, the repo is an unpersonalised copy: `bd init` must not
+ * run, because it bakes the project name into the issue prefix and COMMITS
+ * .beads/ (a project_id UUID and the Dolt sync remote). Shipped from a template,
+ * every downstream copy would inherit that identity and push issues at somebody
+ * else's remote.
+ */
+export const PLACEHOLDER_NAME = "my-project";
+
+/** True while package.json still carries the placeholder name. */
+export function isUnrenamedTemplate(root = ROOT) {
+  return readJson(join(root, "package.json"))?.name === PLACEHOLDER_NAME;
+}
+
 /** Parse a JSON file, or `null` when missing/unparseable. */
 export function readJson(path) {
   const raw = readIfExists(path);

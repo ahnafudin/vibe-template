@@ -26,8 +26,10 @@ import { join } from "node:path";
 import {
   at,
   git,
+  isUnrenamedTemplate,
   norm,
   note as write,
+  PLACEHOLDER_NAME,
   readJson,
   ROOT,
   runTool,
@@ -90,6 +92,7 @@ relay(tryRun(process.execPath, [at("scripts", "sync-agents.mjs")]));
 
 // 4. beads workspace
 step("4/6 beads (bd) issue tracker");
+let beadsReady = false;
 const bdVersion = bd("version");
 if (!bdVersion.ok) {
   note("bd not found — skipping the beads steps (everything above is already done).");
@@ -97,51 +100,62 @@ if (!bdVersion.ok) {
   note("  https://github.com/gastownhall/beads  (or `brew install beads`)");
   note("Avoid CGO-less `go install` builds — embedded Dolt refuses to open with them.");
   note("Then re-run `npm run setup`.");
-  finish();
-}
-note(bdVersion.out);
-
-// `bd where` walks UP ancestor directories, so a parent workspace would match a
-// naive check and silently hijack this project's issues — require the reported
-// workspace to be exactly OURS before skipping init.
-const where = bd("where");
-const reportedWs = where.ok ? (where.out.split(/\r?\n/)[0] ?? "").trim() : "";
-const ownWs = at(".beads");
-const isOwnWorkspace = where.ok && reportedWs && norm(reportedWs) === norm(ownWs);
-
-if (isOwnWorkspace) {
-  note("workspace already active — skipping `bd init`.");
+} else if (isUnrenamedTemplate()) {
+  // `bd init` bakes this project's identity into .beads/ — the issue prefix, a
+  // project_id UUID and the Dolt sync remote — and then COMMITS it. Run on a
+  // copy that is still called "my-project" and every downstream user of that
+  // repo inherits it: their `bd dolt push` would target somebody else's remote.
+  // Refusing here also enforces what SETUP.md already advises — rename first,
+  // or every issue you ever file carries the placeholder prefix.
+  note(`package.json is still named "${PLACEHOLDER_NAME}" — skipping \`bd init\` on purpose.`);
+  note("bd bakes the project name into the issue prefix and commits .beads/ (identity +");
+  note("sync remote), so initializing before renaming would ship this workspace to every");
+  note("copy of the repo. Rename the project, then re-run `npm run setup`.");
 } else {
-  if (where.ok && reportedWs) {
-    note(`note: an ANCESTOR beads workspace exists at ${reportedWs} — this project still gets its own.`);
-  }
-  if (existsSync(join(ownWs, "config.yaml"))) {
-    // Second machine / fresh clone: the config is committed, only the local DB
-    // is missing — bootstrap it, never re-init.
-    const boot = bd("bootstrap");
-    if (!boot.ok) {
-      note(`bd bootstrap failed:\n${boot.out}`);
-      note("fix the error above and re-run `npm run setup` (do NOT run `bd init` — the");
-      note("workspace config is already committed).");
-      process.exit(1);
-    }
-    note("bootstrapped the local DB from the committed .beads config.");
+  note(bdVersion.out);
+  // `bd where` walks UP ancestor directories, so a parent workspace would match
+  // a naive check and silently hijack this project's issues — require the
+  // reported workspace to be exactly OURS before skipping init.
+  const where = bd("where");
+  const reportedWs = where.ok ? (where.out.split(/\r?\n/)[0] ?? "").trim() : "";
+  const ownWs = at(".beads");
+  const isOwnWorkspace = where.ok && reportedWs && norm(reportedWs) === norm(ownWs);
+
+  if (isOwnWorkspace) {
+    note("workspace already active — skipping `bd init`.");
   } else {
-    // Brand-new project. GUARD: `bd init` auto-commits everything staged.
-    if (!tryRun("git", ["diff", "--cached", "--quiet"]).ok) {
-      note("ABORT: you have STAGED changes, and `bd init` auto-commits everything staged.");
-      note("Commit or unstage them first, then re-run `npm run setup`.");
-      process.exit(1);
+    if (where.ok && reportedWs) {
+      note(`note: an ANCESTOR beads workspace exists at ${reportedWs} — this project still gets its own.`);
     }
-    const init = bd("init", "--quiet", "--skip-agents");
-    if (!init.ok) {
-      note(`bd init failed:\n${init.out}`);
-      note("If the error mentions CGO: this bd build lacks embedded Dolt — install the");
-      note("official release binary (or use `bd init --proxied-server`).");
-      process.exit(1);
+    if (existsSync(join(ownWs, "config.yaml"))) {
+      // Second machine / fresh clone: the config is committed, only the local DB
+      // is missing — bootstrap it, never re-init.
+      const boot = bd("bootstrap");
+      if (!boot.ok) {
+        note(`bd bootstrap failed:\n${boot.out}`);
+        note("fix the error above and re-run `npm run setup` (do NOT run `bd init` — the");
+        note("workspace config is already committed).");
+        process.exit(1);
+      }
+      note("bootstrapped the local DB from the committed .beads config.");
+    } else {
+      // Brand-new project. GUARD: `bd init` auto-commits everything staged.
+      if (!tryRun("git", ["diff", "--cached", "--quiet"]).ok) {
+        note("ABORT: you have STAGED changes, and `bd init` auto-commits everything staged.");
+        note("Commit or unstage them first, then re-run `npm run setup`.");
+        process.exit(1);
+      }
+      const init = bd("init", "--quiet", "--skip-agents");
+      if (!init.ok) {
+        note(`bd init failed:\n${init.out}`);
+        note("If the error mentions CGO: this bd build lacks embedded Dolt — install the");
+        note("official release binary (or use `bd init --proxied-server`).");
+        process.exit(1);
+      }
+      note("initialized (embedded Dolt; --skip-agents so it cannot overwrite AGENTS.md).");
     }
-    note("initialized (embedded Dolt; --skip-agents so it cannot overwrite AGENTS.md).");
   }
+  beadsReady = true;
 }
 
 // 5. Claude Code hooks
@@ -170,6 +184,10 @@ if (wrapperInstalled) {
 
 // 6. Dolt sync remote (per machine — it lives in the local DB, not in git)
 step("6/6 beads sync remote");
+if (!beadsReady) {
+  note("no beads workspace yet — nothing to point at a remote.");
+  finish();
+}
 const origin = git(["remote", "get-url", "origin"]);
 if (!origin.ok) {
   note("no git `origin` yet — after you add one, run:");
