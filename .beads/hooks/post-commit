@@ -1,0 +1,62 @@
+#!/bin/sh
+# Auto-version hook (post-commit). Reads the conventional-commit type of the
+# commit that JUST landed, bumps the app semver, and folds the bump INTO that
+# commit via `git commit --amend`. post-commit is the only hook that can do
+# this reliably: git snapshots the index BEFORE prepare-commit-msg runs, so a
+# bump staged there lands one commit late (verified), permanently dirtying the
+# index and breaking the next rebase/cherry-pick.
+#
+#   feat -> minor      fix | perf | refactor -> patch
+#   <type>!: / "BREAKING CHANGE:" footer -> major
+#   docs|test|chore|ci|style|build|<non-conventional> -> no bump
+#
+# The list of manifests comes from `version.mjs manifests` rather than being
+# repeated here: one registry, so adding a stack (Flutter, Maven, Helm, ...)
+# can never leave this hook checking a stale list and silently skipping.
+#
+# Guards (all fail-soft -- never block or corrupt a commit):
+#   - recursion: the amend re-fires post-commit; VIBE_VERSION_AMEND stops it
+#   - sequences: skip during rebase/merge/cherry-pick/revert/bisect (amending
+#     mid-sequence is the classic double-bump corruption)
+#   - dirty manifests: skip when a version manifest already has local edits,
+#     so the amend never silently sweeps user changes into the commit
+
+[ -n "$VIBE_VERSION_AMEND" ] && exit 0
+command -v node >/dev/null 2>&1 || exit 0
+[ -f scripts/version.mjs ] || exit 0
+
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+for s in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD BISECT_LOG; do
+  [ -e "$GIT_DIR/$s" ] && exit 0
+done
+
+bump=$(node scripts/version.mjs infer "$(git log -1 --format=%B)" 2>/dev/null)
+[ "$bump" = "none" ] || [ -z "$bump" ] && exit 0
+
+MANIFESTS=$(node scripts/version.mjs manifests 2>/dev/null)
+[ -z "$MANIFESTS" ] && exit 0
+
+# Split on newlines only, so a manifest path containing spaces stays intact.
+OLDIFS=$IFS
+NL='
+'
+IFS=$NL
+for f in $MANIFESTS; do
+  if [ -f "$f" ] && ! git diff --quiet HEAD -- "$f" 2>/dev/null; then
+    IFS=$OLDIFS
+    echo "[version] skipped: $f has local edits (bump manually: npm run version:$bump)" >&2
+    exit 0
+  fi
+done
+IFS=$OLDIFS
+
+node scripts/version.mjs "$bump" >/dev/null 2>&1 || exit 0
+
+IFS=$NL
+for f in $MANIFESTS; do
+  [ -f "$f" ] && git add "$f" >/dev/null 2>&1
+done
+IFS=$OLDIFS
+
+VIBE_VERSION_AMEND=1 git commit --amend --no-edit --no-verify -q >/dev/null 2>&1
+exit 0

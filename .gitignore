@@ -75,3 +75,6 @@ coverage/
 .turbo/
 *.tsbuildinfo
 # <<< vibe:stack-ignores
+
+# Beads / Dolt files (added by bd init)
+*.db
