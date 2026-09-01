@@ -76,5 +76,8 @@ coverage/
 *.tsbuildinfo
 # <<< vibe:stack-ignores
 
-# Beads / Dolt files (added by bd init)
-*.db
+# `bd init` appends a bare `*.db` here. Narrowed on purpose: this template
+# scopes the rule to .beads/ (above) so a project's own SQLite file — a seeded
+# fixture, a dev database you actually track — is never ignored silently.
+# Widen it yourself if your project genuinely wants every *.db ignored.
+.beads/*.db

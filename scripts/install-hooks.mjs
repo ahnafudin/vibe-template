@@ -13,12 +13,14 @@
 //     copy into a monorepo without its own .git), a naive install would write
 //     core.hooksPath into the PARENT repo and silently disable all of its hooks.
 //   - foreign hooksPath: never clobber an existing hook manager (husky, lefthook…).
-//   - beads: `bd init` moves core.hooksPath to `.beads/hooks` and CHAINS this
-//     hook — expected; leave it alone, but warn if the chain lost our hook.
+//   - beads: `bd init` moves core.hooksPath to `.beads/hooks` and chains this
+//     hook by COPYING it. Expected — but the copy is what git then runs, so it
+//     goes stale the moment .githooks/post-commit is edited. Refresh it, and
+//     warn if the chain lost our hook entirely.
 
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { at, git, norm, note as write, ROOT, safeDirectoryHint } from "./lib/util.mjs";
+import { at, git, norm, note as write, ROOT, safeDirectoryHint, writeIfChanged } from "./lib/util.mjs";
 
 const HOOK_DIR = at(".githooks");
 const HOOK = "post-commit";
@@ -55,12 +57,22 @@ const hooksPath = current.ok ? current.out : "";
 if (hooksPath === ".githooks") {
   note("already installed (core.hooksPath=.githooks)");
 } else if (hooksPath.endsWith(".beads/hooks") || hooksPath.endsWith(".beads\\hooks")) {
-  // beads owns the chain — verify our hook actually survived inside it (either
-  // the full hook text, or a delegator pointing at .githooks/).
+  // beads owns the chain. `bd init` chains a pre-existing hook by COPYING it,
+  // not by delegating — so the copy silently goes stale the next time
+  // .githooks/post-commit is edited, and git runs the old one. Detect that and
+  // refresh, keeping .githooks/ the single source of truth.
   const chained = at(".beads", "hooks", HOOK);
   const chainedBody = existsSync(chained) ? readFileSync(chained, "utf8") : "";
-  if (chainedBody.includes("version.mjs") || chainedBody.includes(`.githooks/${HOOK}`)) {
-    note(`beads owns the hook chain (${hooksPath}) — version hook is chained, leaving as is`);
+  const ours = readFileSync(join(HOOK_DIR, HOOK), "utf8");
+  if (chainedBody.includes(`.githooks/${HOOK}`)) {
+    note(`beads owns the hook chain (${hooksPath}) — it delegates to .githooks/, nothing to do`);
+  } else if (chainedBody.includes("version.mjs")) {
+    if (writeIfChanged(chained, ours)) {
+      note(`beads owns the hook chain (${hooksPath}); its COPY of the auto-version hook was`);
+      note(`stale — refreshed from .githooks/${HOOK}.`);
+    } else {
+      note(`beads owns the hook chain (${hooksPath}) — chained version hook is current`);
+    }
   } else {
     note(`WARNING: beads owns the hook chain (${hooksPath}) but the auto-version ${HOOK} hook`);
     note(`is NOT chained there. Re-run \`bd init\` on a clean tree, or copy .githooks/${HOOK}`);

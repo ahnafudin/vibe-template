@@ -13,13 +13,14 @@
 // PowerShell, cmd.exe and POSIX shells.
 
 import { spawnSync } from "node:child_process";
+import { NEEDS_SHELL } from "./lib/util.mjs";
 
 // 127 = POSIX "command not found"; 9009 = the cmd.exe equivalent.
 const MISSING = new Set([127, 9009]);
 
 const r = spawnSync("bd", ["prime"], {
   encoding: "utf8",
-  shell: process.platform === "win32", // resolves bd.cmd / bd.exe on PATH
+  shell: NEEDS_SHELL, // resolves the bd.cmd / shell shim npm installs on PATH
 });
 
 if (r.error || MISSING.has(r.status ?? 0)) {

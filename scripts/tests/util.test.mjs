@@ -5,7 +5,16 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dubiousOwnership, norm, safeDirectoryHint, upsertManagedBlock } from "../lib/util.mjs";
+import {
+  dubiousOwnership,
+  hasShellMetachars,
+  NEEDS_SHELL,
+  norm,
+  runTool,
+  safeDirectoryHint,
+  tryRun,
+  upsertManagedBlock,
+} from "../lib/util.mjs";
 import { validate } from "../lib/jsonschema.mjs";
 
 describe("upsertManagedBlock", () => {
@@ -108,5 +117,60 @@ describe("jsonschema (the subset used to police stacks.json)", () => {
     const root = { definitions: { name: { type: "string" } }, properties: { a: { $ref: "#/definitions/name" } } };
     assert.deepEqual(validate({ a: "ok" }, root, root), []);
     assert.equal(validate({ a: 5 }, root, root).length, 1);
+  });
+});
+
+describe("tryRun", () => {
+  const node = process.execPath;
+
+  it("surfaces stderr even on SUCCESS", () => {
+    // The whole point: our scripts report progress on stderr, and a runner that
+    // only returned stdout reduced every step of `npm run setup` to "done".
+    const r = tryRun(node, ["-e", "process.stderr.write('progress here')"]);
+    assert.equal(r.ok, true);
+    assert.equal(r.err, "progress here");
+  });
+
+  it("keeps stdout clean, so a caller can read a value out of it", () => {
+    const r = tryRun(node, ["-e", "process.stderr.write('noise'); process.stdout.write('https://example.com/x.git')"]);
+    assert.equal(r.out, "https://example.com/x.git", "stderr must not leak into a value");
+  });
+
+  it("reports a non-zero exit with both streams in `out`", () => {
+    const r = tryRun(node, ["-e", "process.stderr.write('boom'); process.exit(3)"]);
+    assert.equal(r.ok, false);
+    assert.match(r.out, /boom/);
+  });
+
+  it("does not throw when the command does not exist", () => {
+    const r = tryRun("definitely-not-a-real-binary-xyz", []);
+    assert.equal(r.ok, false);
+    assert.ok(r.out.length > 0);
+  });
+});
+
+describe("hasShellMetachars / runTool", () => {
+  it("flags what a shell would reinterpret and allows a normal URL", () => {
+    for (const bad of ['a"b', "a`b", "a$b", "a&b", "a|b", "a;b", "a>b", "a\nb", "a(b)"]) {
+      assert.equal(hasShellMetachars(bad), true, `should flag ${JSON.stringify(bad)}`);
+    }
+    assert.equal(hasShellMetachars("https://github.com/owner/repo.git"), false);
+    assert.equal(hasShellMetachars("git@github.com:owner/repo.git"), false);
+  });
+
+  it("refuses a dangerous argument rather than quoting and hoping (Windows only)", (t) => {
+    if (!NEEDS_SHELL) return t.skip("no shell is involved on this platform");
+    const r = runTool("bd", ["dolt", "remote", "add", "origin", "https://x/y$(whoami)"]);
+    assert.equal(r.ok, false);
+    assert.match(r.out, /refusing to pass this through a Windows shell/);
+  });
+
+  it("still runs an ordinary command with plain arguments", () => {
+    // Deliberately simple args: the guard is strict by design, and a `-e` script
+    // full of quotes and parens is exactly what it is supposed to refuse. Every
+    // real caller (`bd version`, `bd dolt remote list`, …) passes plain tokens.
+    const r = runTool(process.execPath, ["--version"]);
+    assert.equal(r.ok, true, r.out);
+    assert.match(r.out, /^v\d+\./);
   });
 });
