@@ -1945,6 +1945,12 @@
           {
             "content": [
               "Cargo.toml",
+              "[package.metadata.leptos]"
+            ]
+          },
+          {
+            "content": [
+              "Cargo.toml",
               "leptos"
             ]
           }

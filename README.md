@@ -69,6 +69,13 @@ command an agent believes is worse than one it is told to check.
   "conventions": ["the rule an agent would otherwise get wrong"] }
 ```
 
+**If your framework is built on another one, give it more signals than that one has.** Ties break
+alphabetically, and this has bitten three times: Wails vendors `labstack/echo` and was detected as
+Echo; an Ionic Angular app was detected as Angular; the official Leptos starter was detected as
+Axum. Each was fixed by adding the marker that is definitive for the specific framework —
+`wails.json`, `@capacitor/core`, `[package.metadata.leptos]`. The underlying framework then stays
+on as a *secondary*, so its real gate commands still run.
+
 ## Language / version-manifest support
 
 `package.json` is the version source of truth (it exists in every copy as the *tooling* manifest,
