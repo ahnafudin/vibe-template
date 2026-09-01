@@ -43,6 +43,8 @@ Then fill the placeholders — search for `TODO:fill`:
       manifest (setup, gates, versioning); add your language's real manifest beside it
       (`composer.json`, `pyproject.toml`, `go.mod` + a root `VERSION` file — all auto-synced,
       see `docs/VERSIONING.md`)
+- [ ] `README.md` — `npm run setup` replaces the template's README with a stub about your project
+      (the template's own is kept at `docs/TEMPLATE.md`); fill in the description
 - [ ] `.env.example` — every variable the app reads (values stay empty; it is the contract)
 - [ ] `.github/workflows/gate.yml` — add your language toolchain step
 - [ ] `docs/PRD.md` — problem, goals, scope, risks, guardrails

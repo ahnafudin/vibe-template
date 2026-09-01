@@ -1,3 +1,4 @@
+<!-- vibe:template-readme -->
 # vibe-template
 
 A project boilerplate for **AI-assisted ("vibe") coding** — structure and contracts only, no stack
@@ -132,15 +133,34 @@ Then open any AI coding tool and type your task — the rules ride along automat
 
 ## Why the setup order matters
 
-`scripts/setup.mjs` runs **git hooks → stack detection → agent docs → beads init → Claude hooks →
-dolt remote**, because:
+`scripts/setup.mjs` runs **git hooks → personalise → stack detection → agent docs → beads init →
+Claude hooks → dolt remote**, because:
 
 - `bd init` moves `core.hooksPath` to `.beads/hooks` and **chains whatever hook is already
   installed** — install the version hook first or it gets orphaned.
+- Personalising comes before stack detection: it keys off `vibe.ownedByTemplate`, which the
+  detection step then clears.
 - `bd init` **auto-commits everything staged** — the script refuses to run it on a dirty index, and
-  the detection/agent steps before it write only *unstaged* changes, so nothing can be swept in.
-- bd is optional: when it is missing, steps 4–6 are skipped and the rest still completes.
+  every step before it writes only *unstaged* changes, so nothing can be swept in.
+- bd is optional: when it is missing, steps 5–7 are skipped and the rest still completes.
 - The Dolt sync remote lives in the local DB, not in git — it must be added per machine.
+
+## What happens to a copy of this template
+
+The first `npm run setup` in a **renamed** project de-templates it, once:
+
+| Scaffolding | Becomes |
+|---|---|
+| version `0.2.x` (this template's release history) | `0.1.0` |
+| this README | a README about your project; this one is kept as `docs/TEMPLATE.md` |
+| `vibe.gates` (commands that maintain the template) | your framework's gates, from the registry |
+| the `test` npm script (the tooling's own suite) | free for your project; the suite stays at `test:template` |
+| no beads workspace | initialised with YOUR issue prefix and remote |
+
+All of it is keyed off `vibe.ownedByTemplate` and happens exactly once. Nothing you have written is
+ever replaced. `scripts/tests/derived-project.test.mjs` builds a copy, renames it, bootstraps it and
+runs this whole suite inside it — every one of those rows is a bug this template shipped until a
+real generated app exposed it.
 
 ## Two machines?
 

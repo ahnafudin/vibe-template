@@ -4,22 +4,25 @@
 //
 //   1. git hooks first (core.hooksPath=.githooks) — so a later `bd init`
 //      CHAINS the auto-version hook instead of orphaning it
-//   2. stack detection — read the framework markers, fill package.json's
+//   2. personalise a pristine copy — reset the version to 0.1.0 and give the
+//      project its own README (the template's moves to docs/TEMPLATE.md);
+//      keyed off `vibe.ownedByTemplate`, which step 3 then clears
+//   3. stack detection — read the framework markers, fill package.json's
 //      `vibe.gates`, the .gitignore managed block and docs/STACK.md
-//   3. agent doc pointers — regenerate the per-tool stubs from AGENTS.md
-//   4. beads workspace — `bd bootstrap` when a committed .beads config exists
+//   4. agent doc pointers — regenerate the per-tool stubs from AGENTS.md
+//   5. beads workspace — `bd bootstrap` when a committed .beads config exists
 //      (second machine / fresh clone), `bd init` only on a brand-new project,
 //      and NEVER on a dirty index (`bd init` auto-commits every staged file —
 //      a real data-loss footgun)
-//   5. Claude Code hooks — the template ships its own GUARDED priming hook, so
+//   6. Claude Code hooks — the template ships its own GUARDED priming hook, so
 //      this step trusts .claude/settings.json rather than `bd setup claude
 //      --check` (which matches a literal `bd prime` and would have us reinstall
 //      bd's unguarded version on every run)
-//   6. Dolt sync remote = the git origin (lives in the LOCAL beads DB, not in
+//   7. Dolt sync remote = the git origin (lives in the LOCAL beads DB, not in
 //      git, so this step repeats on every new machine)
 //
-// Steps 2 and 3 write only unstaged changes, so they cannot be swept into
-// `bd init`'s auto-commit; and a missing `bd` skips 4–6 without skipping them.
+// Steps 2–4 write only unstaged changes, so they cannot be swept into `bd
+// init`'s auto-commit; and a missing `bd` skips 5–7 without skipping them.
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -77,21 +80,25 @@ if (norm(toplevel.out) !== norm(ROOT)) {
   process.exit(1);
 }
 
-// 1. git hooks (auto-version)
-step("1/6 git hooks (auto-version)");
+// 2. git hooks (auto-version)
+step("1/7 git hooks (auto-version)");
 relay(tryRun(process.execPath, [at("scripts", "install-hooks.mjs")]));
 
-// 2. stack detection → vibe.gates + .gitignore block + docs/STACK.md
-step("2/6 framework detection");
+// 2. de-template a pristine copy: version → 0.1.0, project README.
+step("2/7 personalise this copy");
+relay(tryRun(process.execPath, [at("scripts", "personalize.mjs")]));
+
+// 3. stack detection → vibe.gates + .gitignore block + docs/STACK.md
+step("3/7 framework detection");
 relay(tryRun(process.execPath, [at("scripts", "stacks.mjs"), "apply"]));
 note("re-run any time with `npm run stack:apply` (`npm run stack:reapply` overwrites hand-tuned gates).");
 
-// 3. agent instruction pointers (AGENTS.md → per-tool stubs)
-step("3/6 agent instruction files");
+// 4. agent instruction pointers (AGENTS.md → per-tool stubs)
+step("4/7 agent instruction files");
 relay(tryRun(process.execPath, [at("scripts", "sync-agents.mjs")]));
 
-// 4. beads workspace
-step("4/6 beads (bd) issue tracker");
+// 5. beads workspace
+step("5/7 beads (bd) issue tracker");
 let beadsReady = false;
 const bdVersion = bd("version");
 if (!bdVersion.ok) {
@@ -158,7 +165,7 @@ if (!bdVersion.ok) {
   beadsReady = true;
 }
 
-// 5. Claude Code hooks
+// 6. Claude Code hooks
 //
 // The template ships its OWN priming hook — `node scripts/bd-prime.mjs`, which
 // stays silent when bd is absent instead of putting an error in every session's
@@ -167,7 +174,7 @@ if (!bdVersion.ok) {
 // bd would therefore reinstall its unguarded version on EVERY run and quietly
 // undo the wrapper — so check our own settings file, and call bd only when the
 // wrapper is genuinely missing.
-step("5/6 Claude Code integration");
+step("6/7 Claude Code integration");
 const settings = readJson(at(".claude", "settings.json"));
 const wrapperInstalled = JSON.stringify(settings?.hooks ?? {}).includes("bd-prime.mjs");
 if (wrapperInstalled) {
@@ -182,8 +189,8 @@ if (wrapperInstalled) {
   note('"Beads Issue Tracker" section of AGENTS.md OVERRIDES it wherever they conflict.');
 }
 
-// 6. Dolt sync remote (per machine — it lives in the local DB, not in git)
-step("6/6 beads sync remote");
+// 7. Dolt sync remote (per machine — it lives in the local DB, not in git)
+step("7/7 beads sync remote");
 if (!beadsReady) {
   note("no beads workspace yet — nothing to point at a remote.");
   finish();
