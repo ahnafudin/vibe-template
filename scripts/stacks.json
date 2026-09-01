@@ -141,7 +141,9 @@
       "coreLayer": "pure domain packages (services/, domain/) - I/O at the edges, not inside the logic",
       "conventions": [
         "Type hints on every public function",
-        "Manage dependencies in pyproject.toml, not a hand-edited requirements.txt"
+        "Manage dependencies in pyproject.toml, not a hand-edited requirements.txt",
+        "`pytest` exits 5 when it collects nothing, so the test gate is red until the first test exists — `cargo test` and `npm run test --if-present` pass vacuously, this does not. Write a test rather than weakening the gate",
+        "pytest only discovers `test_*.py` / `*_test.py`; a file named `tests_foo.py` is silently ignored"
       ],
       "versionTargets": [
         "pyproject.toml"
@@ -489,7 +491,7 @@
       "id": "cpp",
       "tier": "language",
       "label": "C / C++ (CMake)",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -499,9 +501,9 @@
       },
       "gates": {
         "lint": null,
-        "typecheck": null,
-        "test": "ctest --test-dir build --output-on-failure",
-        "build": "cmake --build build"
+        "typecheck": "cmake -B build && cmake --build build",
+        "test": "ctest --test-dir build -C Debug --output-on-failure",
+        "build": "cmake --build build --config Release"
       },
       "ignore": [
         "/build/",
@@ -510,7 +512,8 @@
       ],
       "coreLayer": "the library target - the executable is wiring only",
       "conventions": [
-        "Turn on warnings-as-errors in CI"
+        "Turn on warnings-as-errors in CI",
+        "`cmake -B build` must run before anything else — a fresh clone has no build directory, which is why the typecheck gate configures as well as compiles"
       ],
       "versionTargets": [
         "VERSION"
@@ -1688,7 +1691,7 @@
       "tier": "framework",
       "label": "Streamlit",
       "extends": "python",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
