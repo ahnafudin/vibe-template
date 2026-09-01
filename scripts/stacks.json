@@ -1939,7 +1939,7 @@
       "tier": "framework",
       "label": "Leptos (Rust, fullstack)",
       "extends": "rust",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1965,7 +1965,9 @@
       ],
       "coreLayer": "server functions (`#[server]`) - components stay presentational",
       "conventions": [
-        "Keep server-only code behind the `ssr` feature so it never reaches the WASM bundle"
+        "Keep server-only code behind the `ssr` feature so it never reaches the WASM bundle",
+        "`cargo install cargo-leptos` fails on a clean Windows box — openssl-sys needs an OpenSSL that is not there. Use the prebuilt binary from the project's GitHub releases and check its published sha256",
+        "`cargo leptos new` refuses to run without a terminal (\"IO error: not a terminal\"), so in CI or an agent session clone the starter and resolve the cargo-generate placeholders yourself — including the `{% if %}` blocks, which are easy to miss"
       ],
       "versionTargets": [
         "Cargo.toml"
