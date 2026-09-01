@@ -209,7 +209,8 @@
       "coreLayer": "internal/ - domain packages; cmd/ is wiring only",
       "conventions": [
         "Standard layout: cmd/, internal/, pkg/",
-        "Wrap errors with `fmt.Errorf(\"...: %w\", err)`; never swallow them"
+        "Wrap errors with `fmt.Errorf(\"...: %w\", err)`; never swallow them",
+        "Detection reads go.mod as text, and go.mod lists `// indirect` dependencies too — a framework that embeds another (Wails vendors labstack/echo) can be mis-detected. Give your entry more signals so the specific evidence outranks the incidental"
       ],
       "versionTargets": [
         "VERSION"
@@ -625,17 +626,31 @@
         "go",
         "node"
       ],
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
             "file": "wails.json"
+          },
+          {
+            "content": [
+              "go.mod",
+              "wailsapp/wails"
+            ]
+          },
+          {
+            "dir": "frontend"
           }
         ]
       },
       "gates": {
-        "build": "wails build",
-        "test": "go test ./..."
+        "lint": null,
+        "typecheck": [
+          "wails build -nopackage",
+          "go vet ./..."
+        ],
+        "test": "go test ./...",
+        "build": "wails build"
       },
       "ignore": [
         "build/bin/",
@@ -643,7 +658,9 @@
       ],
       "coreLayer": "the bound Go structs - the frontend calls them instead of duplicating logic",
       "conventions": [
-        "Bound methods return explicit errors; never panic across the bridge"
+        "Bound methods return explicit errors; never panic across the bridge",
+        "`frontend/dist` is gitignored but `go:embed` needs it — on a fresh clone `go vet`, `go build` and `go test` ALL fail until something builds the frontend, which is why the typecheck gate runs `wails build -nopackage` first",
+        "Wails v2 vendors labstack/echo, so a plain substring match on go.mod would detect this project as Echo; the entry carries three signals so the specific evidence wins"
       ],
       "versionTargets": [
         "wails.json",
