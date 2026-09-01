@@ -1,0 +1,2366 @@
+{
+  "$schema": "./stacks.schema.json",
+  "stacks": [
+    {
+      "id": "node",
+      "tier": "language",
+      "label": "Node.js / JavaScript / TypeScript",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "package.json"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "npm run lint --if-present",
+        "typecheck": "npm run typecheck --if-present",
+        "test": "npm run test --if-present",
+        "build": "npm run build --if-present"
+      },
+      "ignore": [
+        "node_modules/",
+        "dist/",
+        "coverage/",
+        ".turbo/",
+        "*.tsbuildinfo"
+      ],
+      "coreLayer": "src/services + src/lib - pure modules testable without HTTP or UI",
+      "conventions": [
+        "ESM (`\"type\": \"module\"`) unless the toolchain forces CJS",
+        "TypeScript strict; never reach for `any` as a shortcut"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "deno",
+      "tier": "language",
+      "label": "Deno",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "deno.json"
+          },
+          {
+            "file": "deno.jsonc"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "deno lint",
+        "typecheck": "deno check .",
+        "test": "deno test -A",
+        "build": null
+      },
+      "ignore": [
+        "coverage/"
+      ],
+      "coreLayer": "src/ pure modules; explicit permission flags, never `-A` in production",
+      "conventions": [
+        "Import through the `deno.json` imports map, not bare URLs scattered in files"
+      ],
+      "versionTargets": [
+        "deno.json"
+      ]
+    },
+    {
+      "id": "bun",
+      "tier": "language",
+      "label": "Bun",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "bun.lockb"
+          },
+          {
+            "file": "bunfig.toml"
+          },
+          {
+            "file": "bun.lock"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "bun run lint --if-present",
+        "typecheck": "bunx tsc --noEmit",
+        "test": "bun test",
+        "build": "bun run build --if-present"
+      },
+      "ignore": [
+        "node_modules/",
+        "dist/"
+      ],
+      "coreLayer": "src/services - pure modules kept apart from the server entrypoint",
+      "conventions": [
+        "Use the built-in `bun test`; do not add a second runner without a reason"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "python",
+      "tier": "language",
+      "label": "Python",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "pyproject.toml"
+          },
+          {
+            "file": "requirements.txt"
+          },
+          {
+            "file": "setup.py"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "ruff check .",
+        "typecheck": "mypy .",
+        "test": "pytest -q",
+        "build": null
+      },
+      "ignore": [
+        "__pycache__/",
+        "*.py[cod]",
+        ".venv/",
+        "venv/",
+        "*.egg-info/",
+        ".pytest_cache/",
+        ".mypy_cache/",
+        ".ruff_cache/",
+        ".tox/"
+      ],
+      "coreLayer": "pure domain packages (services/, domain/) - I/O at the edges, not inside the logic",
+      "conventions": [
+        "Type hints on every public function",
+        "Manage dependencies in pyproject.toml, not a hand-edited requirements.txt"
+      ],
+      "versionTargets": [
+        "pyproject.toml"
+      ]
+    },
+    {
+      "id": "php",
+      "tier": "language",
+      "label": "PHP",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "composer.json"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": "vendor/bin/phpstan analyse --no-progress",
+        "test": "vendor/bin/phpunit",
+        "build": null
+      },
+      "ignore": [
+        "/vendor/",
+        ".phpunit.result.cache",
+        ".php-cs-fixer.cache"
+      ],
+      "coreLayer": "app/Services + app/Domain - controllers only parse input and delegate",
+      "conventions": [
+        "PSR-12 formatting",
+        "`declare(strict_types=1);` in every file"
+      ],
+      "versionTargets": [
+        "composer.json"
+      ]
+    },
+    {
+      "id": "go",
+      "tier": "language",
+      "label": "Go",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "go.mod"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "go vet ./...",
+        "typecheck": "go build ./...",
+        "test": "go test ./...",
+        "build": "go build ./..."
+      },
+      "ignore": [
+        "/bin/",
+        "/vendor/",
+        "*.exe",
+        "*.test",
+        "*.out"
+      ],
+      "coreLayer": "internal/ - domain packages; cmd/ is wiring only",
+      "conventions": [
+        "Standard layout: cmd/, internal/, pkg/",
+        "Wrap errors with `fmt.Errorf(\"...: %w\", err)`; never swallow them"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "rust",
+      "tier": "language",
+      "label": "Rust",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "Cargo.toml"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "cargo clippy --all-targets -- -D warnings",
+        "typecheck": "cargo check --all-targets",
+        "test": "cargo test",
+        "build": "cargo build --release"
+      },
+      "ignore": [
+        "/target/",
+        "**/*.rs.bk"
+      ],
+      "coreLayer": "the crate's lib.rs / domain modules - the binary stays a thin shell",
+      "conventions": [
+        "`Result<T, E>` with your own error type (thiserror); `unwrap()` is banned on production paths",
+        "`cargo fmt` before committing"
+      ],
+      "versionTargets": [
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "id": "maven",
+      "tier": "language",
+      "label": "Java / Kotlin (Maven)",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "pom.xml"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": "mvn -B -q compile",
+        "test": "mvn -B test",
+        "build": "mvn -B package -DskipTests"
+      },
+      "ignore": [
+        "/target/",
+        "*.class"
+      ],
+      "coreLayer": "service/domain packages - controllers stay thin",
+      "conventions": [
+        "Constructor injection, never field injection"
+      ],
+      "versionTargets": [
+        "pom.xml"
+      ]
+    },
+    {
+      "id": "gradle",
+      "tier": "language",
+      "label": "Java / Kotlin (Gradle)",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "build.gradle"
+          },
+          {
+            "file": "build.gradle.kts"
+          },
+          {
+            "file": "settings.gradle*"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": "./gradlew compileKotlin compileJava",
+        "test": "./gradlew test",
+        "build": "./gradlew build -x test"
+      },
+      "ignore": [
+        ".gradle/",
+        "/build/",
+        "local.properties"
+      ],
+      "coreLayer": "a domain module kept separate from the app module",
+      "conventions": [
+        "Version catalog (`gradle/libs.versions.toml`) for dependencies"
+      ],
+      "versionTargets": [
+        "gradle.properties",
+        "build.gradle"
+      ]
+    },
+    {
+      "id": "dotnet",
+      "tier": "language",
+      "label": ".NET / C#",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "*.sln"
+          },
+          {
+            "file": "*.csproj"
+          },
+          {
+            "file": "global.json"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "dotnet format --verify-no-changes",
+        "typecheck": "dotnet build --no-restore",
+        "test": "dotnet test",
+        "build": "dotnet build -c Release"
+      },
+      "ignore": [
+        "bin/",
+        "obj/",
+        "*.user"
+      ],
+      "coreLayer": "the Application/Domain project - the Web/UI project is presentation only",
+      "conventions": [
+        "Nullable reference types enabled",
+        "async/await all the way down; avoid `.Result`"
+      ],
+      "versionTargets": [
+        "*.csproj",
+        "Directory.Build.props"
+      ]
+    },
+    {
+      "id": "ruby",
+      "tier": "language",
+      "label": "Ruby",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "Gemfile"
+          },
+          {
+            "file": "*.gemspec"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "bundle exec rubocop",
+        "typecheck": null,
+        "test": "bundle exec rspec",
+        "build": null
+      },
+      "ignore": [
+        "/.bundle/",
+        "/vendor/bundle/",
+        "/tmp/",
+        "/log/"
+      ],
+      "coreLayer": "app/services (service objects) - models do not hold orchestration",
+      "conventions": [
+        "Follow the project's rubocop config; do not disable a cop without a written reason"
+      ],
+      "versionTargets": [
+        "*.gemspec",
+        "lib/**/version.rb"
+      ]
+    },
+    {
+      "id": "elixir",
+      "tier": "language",
+      "label": "Elixir",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "mix.exs"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "mix format --check-formatted",
+        "typecheck": "mix dialyzer",
+        "test": "mix test",
+        "build": "mix compile --warnings-as-errors"
+      },
+      "ignore": [
+        "/_build/",
+        "/deps/",
+        "/cover/",
+        "*.ez",
+        "erl_crash.dump"
+      ],
+      "coreLayer": "context modules - not controllers or LiveViews",
+      "conventions": [
+        "One context per domain; the web layer never calls Repo directly"
+      ],
+      "versionTargets": [
+        "mix.exs"
+      ]
+    },
+    {
+      "id": "dart",
+      "tier": "language",
+      "label": "Dart",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "pubspec.yaml"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "dart analyze",
+        "typecheck": null,
+        "test": "dart test",
+        "build": null
+      },
+      "ignore": [
+        ".dart_tool/",
+        ".packages",
+        "build/"
+      ],
+      "coreLayer": "lib/src/ pure domain modules",
+      "conventions": [
+        "`dart format .` before committing"
+      ],
+      "versionTargets": [
+        "pubspec.yaml"
+      ]
+    },
+    {
+      "id": "swift",
+      "tier": "language",
+      "label": "Swift",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "Package.swift"
+          },
+          {
+            "file": "*.xcodeproj"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "swiftlint",
+        "typecheck": null,
+        "test": "swift test",
+        "build": "swift build"
+      },
+      "ignore": [
+        ".build/",
+        "DerivedData/",
+        "*.xcuserdatad/",
+        "Pods/"
+      ],
+      "coreLayer": "Sources/<Core> - a target separate from the App target",
+      "conventions": [
+        "Release version (MARKETING_VERSION) is set by hand in Xcode - see docs/VERSIONING.md"
+      ],
+      "versionTargets": []
+    },
+    {
+      "id": "cpp",
+      "tier": "language",
+      "label": "C / C++ (CMake)",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "CMakeLists.txt"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": null,
+        "test": "ctest --test-dir build --output-on-failure",
+        "build": "cmake --build build"
+      },
+      "ignore": [
+        "/build/",
+        "CMakeCache.txt",
+        "CMakeFiles/"
+      ],
+      "coreLayer": "the library target - the executable is wiring only",
+      "conventions": [
+        "Turn on warnings-as-errors in CI"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "electron",
+      "tier": "framework",
+      "label": "Electron (desktop)",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "electron"
+          },
+          {
+            "file": "electron-builder.yml"
+          },
+          {
+            "file": "forge.config.*"
+          },
+          {
+            "file": "electron.vite.config.*"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        "out/",
+        "release/",
+        "dist_electron/",
+        "app/dist/"
+      ],
+      "coreLayer": "the main process (Node) - the renderer is pure presentation; all FS/DB/child-process work lives in main",
+      "conventions": [
+        "`contextIsolation: true`, `nodeIntegration: false`; the only bridge is a preload contextBridge",
+        "Validate every IPC payload in main - the renderer is untrusted",
+        "Never load remote content into a window that has preload access"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "tauri",
+      "tier": "framework",
+      "label": "Tauri (desktop, Rust + web)",
+      "extends": [
+        "rust",
+        "node"
+      ],
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "src-tauri/tauri.conf.json"
+          },
+          {
+            "dir": "src-tauri"
+          },
+          {
+            "dep": "@tauri-apps/api"
+          }
+        ]
+      },
+      "gates": {
+        "lint": [
+          "npm run lint --if-present",
+          "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings"
+        ],
+        "typecheck": [
+          "npm run typecheck --if-present",
+          "cargo check --manifest-path src-tauri/Cargo.toml"
+        ],
+        "test": [
+          "npm run test --if-present",
+          "cargo test --manifest-path src-tauri/Cargo.toml"
+        ],
+        "build": "npm run tauri build"
+      },
+      "ignore": [
+        "src-tauri/target/",
+        "src-tauri/gen/"
+      ],
+      "coreLayer": "Rust in src-tauri/src - the frontend only calls `#[tauri::command]` and holds no heavy logic",
+      "conventions": [
+        "Every Rust command validates its own arguments; the frontend is untrusted",
+        "Keep the tauri.conf.json allowlist/capabilities as narrow as possible",
+        "Heavy work goes in an `async` command or a thread - never block the main thread"
+      ],
+      "versionTargets": [
+        "package.json",
+        "src-tauri/tauri.conf.json",
+        "src-tauri/Cargo.toml"
+      ]
+    },
+    {
+      "id": "wails",
+      "tier": "framework",
+      "label": "Wails (desktop, Go + web)",
+      "extends": [
+        "go",
+        "node"
+      ],
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "wails.json"
+          }
+        ]
+      },
+      "gates": {
+        "build": "wails build",
+        "test": "go test ./..."
+      },
+      "ignore": [
+        "build/bin/",
+        "frontend/dist/"
+      ],
+      "coreLayer": "the bound Go structs - the frontend calls them instead of duplicating logic",
+      "conventions": [
+        "Bound methods return explicit errors; never panic across the bridge"
+      ],
+      "versionTargets": [
+        "wails.json",
+        "VERSION"
+      ]
+    },
+    {
+      "id": "maui",
+      "tier": "framework",
+      "label": ".NET MAUI (desktop/mobile)",
+      "extends": "dotnet",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "*.csproj",
+              "UseMaui"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "build": "dotnet build -c Release"
+      },
+      "ignore": [
+        "bin/",
+        "obj/",
+        "Platforms/*/bin/"
+      ],
+      "coreLayer": "the ViewModel/Services project - XAML code-behind stays empty",
+      "conventions": [
+        "Strict MVVM; bind, do not manipulate controls directly"
+      ],
+      "versionTargets": [
+        "*.csproj"
+      ]
+    },
+    {
+      "id": "avalonia",
+      "tier": "framework",
+      "label": "Avalonia UI (desktop)",
+      "extends": "dotnet",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "*.csproj",
+              "Avalonia"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "build": "dotnet build -c Release"
+      },
+      "ignore": [
+        "bin/",
+        "obj/"
+      ],
+      "coreLayer": "the ViewModel/Services project - the View is XAML only",
+      "conventions": [
+        "MVVM via ReactiveUI or CommunityToolkit.Mvvm - pick one and stay consistent"
+      ],
+      "versionTargets": [
+        "*.csproj"
+      ]
+    },
+    {
+      "id": "nextjs",
+      "tier": "framework",
+      "label": "Next.js",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "next.config.*"
+          },
+          {
+            "dep": "next"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".next/",
+        ".vercel/",
+        "next-env.d.ts"
+      ],
+      "coreLayer": "Server Components / Route Handlers / server actions - Client Components are presentation only",
+      "conventions": [
+        "`\"use client\"` as rarely and as close to the leaves as possible",
+        "Fetch data on the server; never have the server call its own API over HTTP",
+        "Secrets stay in server-only env vars (no `NEXT_PUBLIC_` prefix)"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "nuxt",
+      "tier": "framework",
+      "label": "Nuxt",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "nuxt.config.*"
+          },
+          {
+            "dep": "nuxt"
+          }
+        ]
+      },
+      "gates": {
+        "typecheck": "npx nuxi typecheck",
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".nuxt/",
+        ".output/",
+        ".nitro/"
+      ],
+      "coreLayer": "server/api + server/utils (Nitro) - client composables stay thin",
+      "conventions": [
+        "`useFetch`/`useAsyncData` for data, not bare `fetch` in setup",
+        "`runtimeConfig` for secrets; `public` only for what is safe to expose"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "react-vite",
+      "tier": "framework",
+      "label": "React + Vite",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "all": [
+          {
+            "dep": "react"
+          },
+          {
+            "file": "vite.config.*"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        "dist/",
+        ".vite/"
+      ],
+      "coreLayer": "src/services + src/hooks - components hold no business logic",
+      "conventions": [
+        "Function components and hooks; no new class components",
+        "Server state via TanStack Query, not hand-rolled useEffect"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "vue",
+      "tier": "framework",
+      "label": "Vue 3 + Vite",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "all": [
+          {
+            "dep": "vue"
+          },
+          {
+            "file": "vite.config.*"
+          }
+        ]
+      },
+      "gates": {
+        "typecheck": "npx vue-tsc --noEmit",
+        "build": "npm run build"
+      },
+      "ignore": [
+        "dist/",
+        ".vite/"
+      ],
+      "coreLayer": "src/composables + src/services - SFCs stay presentational",
+      "conventions": [
+        "`<script setup>` with the Composition API",
+        "Pinia for global state, never an event bus"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "angular",
+      "tier": "framework",
+      "label": "Angular",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "angular.json"
+          },
+          {
+            "dep": "@angular/core"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "npx ng lint",
+        "test": "npx ng test --watch=false --browsers=ChromeHeadless",
+        "build": "npx ng build"
+      },
+      "ignore": [
+        ".angular/",
+        "dist/"
+      ],
+      "coreLayer": "Injectable services - components only orchestrate the view",
+      "conventions": [
+        "Standalone components for new code",
+        "RxJS: always unsubscribe (takeUntilDestroyed) - a leaked subscription is a bug",
+        "OnPush change detection by default"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "sveltekit",
+      "tier": "framework",
+      "label": "SvelteKit",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "svelte.config.js"
+          },
+          {
+            "dep": "@sveltejs/kit"
+          }
+        ]
+      },
+      "gates": {
+        "typecheck": "npm run check --if-present",
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".svelte-kit/",
+        "build/",
+        ".vercel/"
+      ],
+      "coreLayer": "`+page.server.ts` / `src/lib/server` - secrets must never leave `$lib/server`",
+      "conventions": [
+        "`load` for data; forms use actions, not manual fetch",
+        "Nothing in `$lib/server` can reach the client bundle - rely on that"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "astro",
+      "tier": "framework",
+      "label": "Astro",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "astro.config.*"
+          },
+          {
+            "dep": "astro"
+          }
+        ]
+      },
+      "gates": {
+        "typecheck": "npx astro check",
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".astro/",
+        "dist/"
+      ],
+      "coreLayer": "`.astro` components render on the server - client islands are for interactivity only",
+      "conventions": [
+        "Keep islands minimal; every `client:*` directive is a deliberate choice"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "remix",
+      "tier": "framework",
+      "label": "Remix / React Router 7",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "@remix-run/react"
+          },
+          {
+            "file": "react-router.config.*"
+          },
+          {
+            "file": "remix.config.*"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".react-router/",
+        "build/",
+        ".cache/"
+      ],
+      "coreLayer": "`loader`/`action` in the route module - components just render the result",
+      "conventions": [
+        "Progressive enhancement: forms must still work with JS disabled"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "solidstart",
+      "tier": "framework",
+      "label": "SolidStart",
+      "extends": "node",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "dep": "@solidjs/start"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".vinxi/",
+        ".output/",
+        "dist/"
+      ],
+      "coreLayer": "server functions (`\"use server\"`) - components stay thin",
+      "conventions": [
+        "Fine-grained signals; do not import React re-render habits"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "express",
+      "tier": "framework",
+      "label": "Express",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "express"
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "src/services + src/repositories - route handlers only validate, delegate and serialise",
+      "conventions": [
+        "One central error-handling middleware; no try/catch scattered per route",
+        "Validate input at the boundary (zod/joi) before it reaches a service"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "nestjs",
+      "tier": "framework",
+      "label": "NestJS",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "nest-cli.json"
+          },
+          {
+            "dep": "@nestjs/core"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npx nest build",
+        "test": "npm run test --if-present"
+      },
+      "ignore": [
+        "dist/"
+      ],
+      "coreLayer": "providers/services per module - controllers are thin and hold no business logic",
+      "conventions": [
+        "One module per domain; wire dependencies through DI, not direct imports",
+        "DTOs plus a global ValidationPipe for all input",
+        "A repository layer keeps the ORM out of your services"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "fastify",
+      "tier": "framework",
+      "label": "Fastify",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "fastify"
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "src/services - route handlers are adapters only",
+      "conventions": [
+        "A JSON Schema per route (validation plus fast serialisation) - this is why you chose Fastify",
+        "Wrap cross-route concerns as plugins instead of registering globals ad hoc"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "hono",
+      "tier": "framework",
+      "label": "Hono",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "hono"
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "runtime-agnostic service modules - handlers sit thinly on top",
+      "conventions": [
+        "Stay on Web standards (Request/Response) so the code stays portable across runtimes",
+        "`@hono/zod-validator` at the input boundary"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "adonisjs",
+      "tier": "framework",
+      "label": "AdonisJS",
+      "extends": "node",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "adonisrc.ts"
+          },
+          {
+            "file": "ace.js"
+          },
+          {
+            "dep": "@adonisjs/core"
+          }
+        ]
+      },
+      "gates": {
+        "test": "node ace test",
+        "build": "node ace build"
+      },
+      "ignore": [
+        "build/",
+        "tmp/"
+      ],
+      "coreLayer": "app/services - controllers stay thin and Lucid models hold no orchestration",
+      "conventions": [
+        "Validators for all input",
+        "Migrations for every schema change"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "elysia",
+      "tier": "framework",
+      "label": "Elysia (Bun)",
+      "extends": "bun",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "dep": "elysia"
+          }
+        ]
+      },
+      "gates": {
+        "test": "bun test"
+      },
+      "ignore": [
+        "dist/"
+      ],
+      "coreLayer": "pure service modules - routes are only bindings",
+      "conventions": [
+        "A `t.Object` schema on every route keeps type-safety end to end"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "expo",
+      "tier": "framework",
+      "label": "Expo (React Native)",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "dep": "expo"
+          },
+          {
+            "content": [
+              "app.json",
+              "\"expo\""
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "lint": "npx expo lint",
+        "typecheck": "npx tsc --noEmit",
+        "build": null
+      },
+      "ignore": [
+        ".expo/",
+        "dist/",
+        "web-build/",
+        "*.jks",
+        "*.p8",
+        "*.p12",
+        "*.mobileprovision"
+      ],
+      "coreLayer": "src/services + src/hooks - screens are presentation only",
+      "conventions": [
+        "expo-router for file-based navigation",
+        "Secrets NEVER go in app.json - use EAS secrets",
+        "Bump `android.versionCode`/`ios.buildNumber` at release; semver does not do it for you"
+      ],
+      "versionTargets": [
+        "package.json",
+        "app.json"
+      ]
+    },
+    {
+      "id": "react-native",
+      "tier": "framework",
+      "label": "React Native (bare)",
+      "extends": "node",
+      "verified": true,
+      "detect": {
+        "all": [
+          {
+            "dep": "react-native"
+          },
+          {
+            "file": "metro.config.js"
+          }
+        ]
+      },
+      "gates": {
+        "typecheck": "npx tsc --noEmit",
+        "test": "npm run test --if-present"
+      },
+      "ignore": [
+        "android/build/",
+        "android/app/build/",
+        "android/.gradle/",
+        "ios/Pods/",
+        "ios/build/",
+        "*.keystore"
+      ],
+      "coreLayer": "src/services - shared JS; native modules stay thin bridges",
+      "conventions": [
+        "Native versions (versionName / CFBundleShortVersionString) are synced by hand at release"
+      ],
+      "versionTargets": [
+        "package.json",
+        "android/app/build.gradle"
+      ]
+    },
+    {
+      "id": "flutter",
+      "tier": "framework",
+      "label": "Flutter",
+      "extends": "dart",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "pubspec.yaml",
+              "flutter:"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "lint": "flutter analyze",
+        "test": "flutter test",
+        "build": "flutter build apk --release"
+      },
+      "ignore": [
+        ".dart_tool/",
+        "build/",
+        ".flutter-plugins",
+        ".flutter-plugins-dependencies",
+        "*.g.dart.lock"
+      ],
+      "coreLayer": "lib/src/domain + lib/src/data - widgets are presentation only",
+      "conventions": [
+        "Pick one state management approach (Riverpod/Bloc) and apply it consistently",
+        "`const` constructors wherever possible - this is a real performance difference",
+        "The `+N` build number in pubspec.yaml is raised by hand for store releases"
+      ],
+      "versionTargets": [
+        "pubspec.yaml"
+      ]
+    },
+    {
+      "id": "ionic",
+      "tier": "framework",
+      "label": "Ionic / Capacitor",
+      "extends": "node",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "ionic.config.json"
+          },
+          {
+            "file": "capacitor.config.*"
+          }
+        ]
+      },
+      "gates": {
+        "build": "npm run build"
+      },
+      "ignore": [
+        ".ionic/",
+        "www/",
+        "android/app/build/",
+        "ios/App/Pods/"
+      ],
+      "coreLayer": "the web service layer - native plugins are wrapped behind one adapter",
+      "conventions": [
+        "Run `npx cap sync` after every native dependency change"
+      ],
+      "versionTargets": [
+        "package.json"
+      ]
+    },
+    {
+      "id": "android",
+      "tier": "framework",
+      "label": "Android (Gradle)",
+      "extends": "gradle",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "app/src/main/AndroidManifest.xml"
+          },
+          {
+            "content": [
+              "build.gradle*",
+              "com.android.application"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "lint": "./gradlew lint",
+        "test": "./gradlew test",
+        "build": "./gradlew assembleRelease"
+      },
+      "ignore": [
+        ".gradle/",
+        "/build/",
+        "app/build/",
+        "local.properties",
+        "*.apk",
+        "*.aab",
+        "*.keystore"
+      ],
+      "coreLayer": "domain/data modules (clean architecture) - Activities/Composables are UI only",
+      "conventions": [
+        "`versionName` follows the semver; `versionCode` is a separate monotonic counter",
+        "Never commit a keystore or local.properties"
+      ],
+      "versionTargets": [
+        "gradle.properties",
+        "app/build.gradle"
+      ]
+    },
+    {
+      "id": "laravel",
+      "tier": "framework",
+      "label": "Laravel",
+      "extends": "php",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "artisan"
+          },
+          {
+            "content": [
+              "composer.json",
+              "laravel/framework"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "lint": "vendor/bin/pint --test",
+        "typecheck": "vendor/bin/phpstan analyse --no-progress",
+        "test": "php artisan test",
+        "build": null
+      },
+      "ignore": [
+        "/vendor/",
+        "/storage/framework/",
+        "/storage/logs/",
+        "/bootstrap/cache/",
+        "/public/storage",
+        "/public/hot",
+        ".phpunit.result.cache"
+      ],
+      "coreLayer": "app/Services + app/Actions - controllers stay thin and Eloquent models hold no orchestration",
+      "conventions": [
+        "Form Requests for validation, not `$request->validate()` sprinkled through controllers",
+        "Query through Eloquent scopes or query objects; keep raw SQL out of controllers",
+        "Long work goes to a queued Job, not the request cycle",
+        "Every schema change is a migration - never edit the database by hand"
+      ],
+      "versionTargets": [
+        "composer.json"
+      ]
+    },
+    {
+      "id": "symfony",
+      "tier": "framework",
+      "label": "Symfony",
+      "extends": "php",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "symfony.lock"
+          },
+          {
+            "file": "bin/console"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "typecheck": "vendor/bin/phpstan analyse --no-progress",
+        "test": "php bin/phpunit",
+        "build": null
+      },
+      "ignore": [
+        "/vendor/",
+        "/var/",
+        "/public/bundles/",
+        ".env.local",
+        ".env.*.local"
+      ],
+      "coreLayer": "services in src/Service plus Doctrine repositories - controllers are thin `__invoke`s",
+      "conventions": [
+        "Autowiring and constructor injection; never pull from the container manually",
+        "Doctrine entities stay anaemic; logic lives in services/domain"
+      ],
+      "versionTargets": [
+        "composer.json"
+      ]
+    },
+    {
+      "id": "codeigniter4",
+      "tier": "framework",
+      "label": "CodeIgniter 4",
+      "extends": "php",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "spark"
+          },
+          {
+            "content": [
+              "composer.json",
+              "codeigniter4/framework"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "vendor/bin/phpunit",
+        "typecheck": null
+      },
+      "ignore": [
+        "/vendor/",
+        "/writable/",
+        "/public/uploads/",
+        ".env"
+      ],
+      "coreLayer": "app/Libraries + app/Models - controllers stay thin",
+      "conventions": [
+        "CI4 Models for data access; validation via Model or Request rules",
+        "Explicit routes in Config/Routes.php; do not rely on auto-routing"
+      ],
+      "versionTargets": [
+        "composer.json"
+      ]
+    },
+    {
+      "id": "slim",
+      "tier": "framework",
+      "label": "Slim Framework",
+      "extends": "php",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "composer.json",
+              "slim/slim"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "vendor/bin/phpunit"
+      },
+      "ignore": [
+        "/vendor/"
+      ],
+      "coreLayer": "action classes plus services - routes are registration only",
+      "conventions": [
+        "One class per action (single-action controllers)",
+        "PSR-15 middleware"
+      ],
+      "versionTargets": [
+        "composer.json"
+      ]
+    },
+    {
+      "id": "wordpress",
+      "tier": "framework",
+      "label": "WordPress (plugin / theme)",
+      "extends": "php",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "dir": "wp-content"
+          },
+          {
+            "file": "wp-config.php"
+          },
+          {
+            "content": [
+              "style.css",
+              "Theme Name:"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "lint": "vendor/bin/phpcs --standard=WordPress",
+        "test": "vendor/bin/phpunit",
+        "typecheck": null
+      },
+      "ignore": [
+        "/vendor/",
+        "wp-content/uploads/",
+        "wp-content/cache/",
+        "*.log"
+      ],
+      "coreLayer": "classes in includes/ - hook files only register actions and filters",
+      "conventions": [
+        "Prefix EVERY function, option and table with the plugin slug - the global namespace is shared",
+        "Escape on output (`esc_html`/`esc_attr`), sanitise on input, nonce every form",
+        "The plugin version lives in the PHP header; sync it at release (see docs/VERSIONING.md)"
+      ],
+      "versionTargets": [
+        "style.css"
+      ]
+    },
+    {
+      "id": "django",
+      "tier": "framework",
+      "label": "Django",
+      "extends": "python",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "manage.py"
+          },
+          {
+            "content": [
+              "requirements.txt",
+              "Django"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "python manage.py test",
+        "typecheck": null
+      },
+      "ignore": [
+        "*.sqlite3",
+        "/staticfiles/",
+        "/media/",
+        "__pycache__/"
+      ],
+      "coreLayer": "services.py / custom managers per app - views stay thin and hold no business logic",
+      "conventions": [
+        "Fat models or a service layer, thin views",
+        "`select_related`/`prefetch_related` to avoid N+1",
+        "Every model change ships with a committed migration"
+      ],
+      "versionTargets": [
+        "pyproject.toml",
+        "VERSION"
+      ]
+    },
+    {
+      "id": "fastapi",
+      "tier": "framework",
+      "label": "FastAPI",
+      "extends": "python",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "pyproject.toml",
+              "fastapi"
+            ]
+          },
+          {
+            "content": [
+              "requirements.txt",
+              "fastapi"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "pytest -q"
+      },
+      "ignore": [
+        "__pycache__/",
+        ".pytest_cache/"
+      ],
+      "coreLayer": "pure services/ modules - routers only validate and delegate",
+      "conventions": [
+        "Pydantic models at the boundary; never leak ORM models into responses",
+        "Dependency injection via `Depends` for session and auth",
+        "`async def` endpoints only for genuinely async I/O - otherwise plain `def`"
+      ],
+      "versionTargets": [
+        "pyproject.toml"
+      ]
+    },
+    {
+      "id": "flask",
+      "tier": "framework",
+      "label": "Flask",
+      "extends": "python",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "pyproject.toml",
+              "Flask"
+            ]
+          },
+          {
+            "content": [
+              "requirements.txt",
+              "Flask"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "pytest -q"
+      },
+      "ignore": [
+        "__pycache__/",
+        "instance/"
+      ],
+      "coreLayer": "services/ modules - view functions stay thin",
+      "conventions": [
+        "A blueprint per domain",
+        "Application factory (`create_app`), not a global app"
+      ],
+      "versionTargets": [
+        "pyproject.toml"
+      ]
+    },
+    {
+      "id": "streamlit",
+      "tier": "framework",
+      "label": "Streamlit",
+      "extends": "python",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "requirements.txt",
+              "streamlit"
+            ]
+          },
+          {
+            "content": [
+              "pyproject.toml",
+              "streamlit"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "pytest -q",
+        "typecheck": null
+      },
+      "ignore": [
+        "__pycache__/",
+        ".streamlit/secrets.toml"
+      ],
+      "coreLayer": "pure modules importable without Streamlit - the UI script only calls them",
+      "conventions": [
+        "`@st.cache_data` for expensive work",
+        "Secrets in `.streamlit/secrets.toml` (never committed)"
+      ],
+      "versionTargets": [
+        "pyproject.toml"
+      ]
+    },
+    {
+      "id": "gin",
+      "tier": "framework",
+      "label": "Gin (Go)",
+      "extends": "go",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "go.mod",
+              "gin-gonic/gin"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "internal/service packages - handlers bind, delegate and respond",
+      "conventions": [
+        "`ShouldBindJSON` plus validator tags at the boundary",
+        "Middleware for cross-cutting concerns, not repeated per handler"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "echo",
+      "tier": "framework",
+      "label": "Echo (Go)",
+      "extends": "go",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "go.mod",
+              "labstack/echo"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "internal/service packages - handlers stay thin",
+      "conventions": [
+        "One central HTTPErrorHandler"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "fiber",
+      "tier": "framework",
+      "label": "Fiber (Go)",
+      "extends": "go",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "go.mod",
+              "gofiber/fiber"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "internal/service packages - handlers stay thin",
+      "conventions": [
+        "Remember `c.Body()` is reused between requests - copy it before storing"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "chi",
+      "tier": "framework",
+      "label": "chi / net-http (Go)",
+      "extends": "go",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "go.mod",
+              "go-chi/chi"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "internal/service packages - `http.HandlerFunc` handlers stay thin",
+      "conventions": [
+        "Stay `net/http`-compatible; that is the reason to pick chi"
+      ],
+      "versionTargets": [
+        "VERSION"
+      ]
+    },
+    {
+      "id": "axum",
+      "tier": "framework",
+      "label": "Axum (Rust)",
+      "extends": "rust",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "Cargo.toml",
+              "axum"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "domain/service modules - handlers are extractors plus delegation",
+      "conventions": [
+        "Your own error type implementing `IntoResponse`",
+        "State through `State<T>`, never globals"
+      ],
+      "versionTargets": [
+        "Cargo.toml"
+      ]
+    },
+    {
+      "id": "actix",
+      "tier": "framework",
+      "label": "Actix Web (Rust)",
+      "extends": "rust",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "Cargo.toml",
+              "actix-web"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "domain/service modules - handlers stay thin",
+      "conventions": [
+        "`ResponseError` for domain errors",
+        "Never block a worker: CPU work goes to `web::block`"
+      ],
+      "versionTargets": [
+        "Cargo.toml"
+      ]
+    },
+    {
+      "id": "rocket",
+      "tier": "framework",
+      "label": "Rocket (Rust)",
+      "extends": "rust",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "Cargo.toml",
+              "rocket"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [],
+      "coreLayer": "domain modules - routes are guards plus delegation",
+      "conventions": [
+        "Request guards for auth, not manual checks in every route"
+      ],
+      "versionTargets": [
+        "Cargo.toml"
+      ]
+    },
+    {
+      "id": "leptos",
+      "tier": "framework",
+      "label": "Leptos (Rust, fullstack)",
+      "extends": "rust",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "Cargo.toml",
+              "leptos"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "build": "cargo leptos build --release"
+      },
+      "ignore": [
+        "/target/",
+        "/pkg/"
+      ],
+      "coreLayer": "server functions (`#[server]`) - components stay presentational",
+      "conventions": [
+        "Keep server-only code behind the `ssr` feature so it never reaches the WASM bundle"
+      ],
+      "versionTargets": [
+        "Cargo.toml"
+      ]
+    },
+    {
+      "id": "spring-boot",
+      "tier": "framework",
+      "label": "Spring Boot",
+      "extends": "maven",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "pom.xml",
+              "spring-boot"
+            ]
+          },
+          {
+            "content": [
+              "build.gradle*",
+              "org.springframework.boot"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "mvn -B test",
+        "build": "mvn -B package -DskipTests"
+      },
+      "ignore": [
+        "/target/",
+        "/build/",
+        ".gradle/"
+      ],
+      "coreLayer": "@Service and @Repository - @RestControllers are thin and hold no business logic",
+      "conventions": [
+        "Constructor injection (field injection is banned)",
+        "DTOs at the API boundary; never expose an @Entity directly",
+        "`@Transactional` on services, not controllers"
+      ],
+      "versionTargets": [
+        "pom.xml"
+      ]
+    },
+    {
+      "id": "ktor",
+      "tier": "framework",
+      "label": "Ktor (Kotlin)",
+      "extends": "gradle",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "build.gradle*",
+              "io.ktor"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "./gradlew test",
+        "build": "./gradlew build -x test"
+      },
+      "ignore": [
+        ".gradle/",
+        "/build/"
+      ],
+      "coreLayer": "service modules - routing is binding only",
+      "conventions": [
+        "Compose features as plugins",
+        "Coroutines all the way; never `runBlocking` in a handler"
+      ],
+      "versionTargets": [
+        "gradle.properties"
+      ]
+    },
+    {
+      "id": "quarkus",
+      "tier": "framework",
+      "label": "Quarkus",
+      "extends": "maven",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "pom.xml",
+              "quarkus"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "mvn -B test",
+        "build": "mvn -B package -DskipTests"
+      },
+      "ignore": [
+        "/target/"
+      ],
+      "coreLayer": "@ApplicationScoped services - JAX-RS resources stay thin",
+      "conventions": [
+        "Mind native-image limits (reflection needs explicit registration)"
+      ],
+      "versionTargets": [
+        "pom.xml"
+      ]
+    },
+    {
+      "id": "aspnetcore",
+      "tier": "framework",
+      "label": "ASP.NET Core",
+      "extends": "dotnet",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "*.csproj",
+              "Microsoft.NET.Sdk.Web"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [
+        "bin/",
+        "obj/"
+      ],
+      "coreLayer": "the Application/Domain project - Controllers and minimal-API endpoints stay thin",
+      "conventions": [
+        "Constructor DI; scoped lifetime for DbContext",
+        "Never return EF entities directly - use DTOs"
+      ],
+      "versionTargets": [
+        "*.csproj"
+      ]
+    },
+    {
+      "id": "blazor",
+      "tier": "framework",
+      "label": "Blazor",
+      "extends": "dotnet",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "*.csproj",
+              "Microsoft.AspNetCore.Components"
+            ]
+          }
+        ]
+      },
+      "gates": {},
+      "ignore": [
+        "bin/",
+        "obj/"
+      ],
+      "coreLayer": "injected services - `.razor` components are presentation only",
+      "conventions": [
+        "Know your render mode (Server vs WASM) before touching anything secret"
+      ],
+      "versionTargets": [
+        "*.csproj"
+      ]
+    },
+    {
+      "id": "rails",
+      "tier": "framework",
+      "label": "Ruby on Rails",
+      "extends": "ruby",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "bin/rails"
+          },
+          {
+            "file": "config/application.rb"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "bundle exec rubocop",
+        "test": "bin/rails test"
+      },
+      "ignore": [
+        "/tmp/",
+        "/log/",
+        "/storage/",
+        "/public/assets/",
+        "/node_modules/"
+      ],
+      "coreLayer": "app/services (service objects) - controllers stay thin and models hold no orchestration",
+      "conventions": [
+        "Strong parameters in every controller",
+        "Avoid N+1 with `includes`",
+        "Schema changes only ever through migrations"
+      ],
+      "versionTargets": [
+        "lib/**/version.rb"
+      ]
+    },
+    {
+      "id": "sinatra",
+      "tier": "framework",
+      "label": "Sinatra",
+      "extends": "ruby",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "Gemfile",
+              "sinatra"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "bundle exec rspec"
+      },
+      "ignore": [],
+      "coreLayer": "pure service classes - route blocks stay thin",
+      "conventions": [
+        "Modular style (`Sinatra::Base`), not the top-level DSL, for anything beyond a script"
+      ],
+      "versionTargets": [
+        "*.gemspec"
+      ]
+    },
+    {
+      "id": "phoenix",
+      "tier": "framework",
+      "label": "Phoenix (Elixir)",
+      "extends": "elixir",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "content": [
+              "mix.exs",
+              "phoenix"
+            ]
+          }
+        ]
+      },
+      "gates": {
+        "test": "mix test"
+      },
+      "ignore": [
+        "/_build/",
+        "/deps/",
+        "/priv/static/assets/",
+        "/assets/node_modules/"
+      ],
+      "coreLayer": "context modules (`MyApp.Accounts`) - controllers and LiveViews never touch Repo",
+      "conventions": [
+        "One context per domain; the web layer calls contexts, not Ecto",
+        "Ecto changesets for all validation"
+      ],
+      "versionTargets": [
+        "mix.exs"
+      ]
+    },
+    {
+      "id": "unity",
+      "tier": "framework",
+      "label": "Unity",
+      "extends": "dotnet",
+      "verified": false,
+      "detect": {
+        "all": [
+          {
+            "dir": "Assets"
+          },
+          {
+            "dir": "ProjectSettings"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": null,
+        "test": null,
+        "build": null
+      },
+      "ignore": [
+        "/Library/",
+        "/Temp/",
+        "/Obj/",
+        "/Build/",
+        "/Logs/",
+        "/UserSettings/",
+        "*.csproj",
+        "*.sln"
+      ],
+      "coreLayer": "plain C# classes (no MonoBehaviour) - MonoBehaviours are Unity glue only",
+      "conventions": [
+        "No `Find`/`GetComponent` in `Update` - cache them in `Awake`",
+        "The version lives in ProjectSettings/ProjectSettings.asset, set through Unity, not by script"
+      ],
+      "versionTargets": []
+    },
+    {
+      "id": "godot",
+      "tier": "framework",
+      "label": "Godot",
+      "verified": false,
+      "detect": {
+        "any": [
+          {
+            "file": "project.godot"
+          }
+        ]
+      },
+      "gates": {
+        "lint": null,
+        "typecheck": null,
+        "test": null,
+        "build": null
+      },
+      "ignore": [
+        ".godot/",
+        "/build/",
+        "export_presets.cfg"
+      ],
+      "coreLayer": "standalone scripts (plain Resource/class) - node scripts are scene glue only",
+      "conventions": [
+        "Signals for node-to-node communication, not direct path references"
+      ],
+      "versionTargets": []
+    },
+    {
+      "id": "terraform",
+      "tier": "framework",
+      "label": "Terraform / OpenTofu",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "*.tf"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "terraform fmt -check -recursive",
+        "typecheck": "terraform validate",
+        "test": null,
+        "build": "terraform plan -input=false"
+      },
+      "ignore": [
+        ".terraform/",
+        "*.tfstate",
+        "*.tfstate.*",
+        "*.tfvars",
+        "crash.log"
+      ],
+      "coreLayer": "modules in modules/ - the root module is composition only",
+      "conventions": [
+        "Remote state with locking - never commit local state",
+        "`*.tfvars` holds secrets: gitignored, not reviewed"
+      ],
+      "versionTargets": []
+    },
+    {
+      "id": "helm",
+      "tier": "framework",
+      "label": "Helm chart",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "Chart.yaml"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "helm lint .",
+        "typecheck": "helm template . > /dev/null",
+        "test": null,
+        "build": null
+      },
+      "ignore": [
+        "charts/*.tgz"
+      ],
+      "coreLayer": "templates/ plus values.yaml - never hardcode a value in a template",
+      "conventions": [
+        "`version` (the chart) and `appVersion` (the app) differ - scripts/version.mjs syncs both",
+        "Every new value gets a default in values.yaml"
+      ],
+      "versionTargets": [
+        "Chart.yaml"
+      ]
+    },
+    {
+      "id": "docker-compose",
+      "tier": "framework",
+      "label": "Docker Compose",
+      "verified": true,
+      "detect": {
+        "any": [
+          {
+            "file": "compose.yaml"
+          },
+          {
+            "file": "compose.yml"
+          },
+          {
+            "file": "docker-compose.yml"
+          }
+        ]
+      },
+      "gates": {
+        "lint": "docker compose config -q",
+        "typecheck": null,
+        "test": null,
+        "build": null
+      },
+      "ignore": [
+        ".env",
+        "*.local.yml"
+      ],
+      "coreLayer": "the application image - compose is local orchestration, not a place for logic",
+      "conventions": [
+        "Pin image tags (never `latest`)",
+        "Secrets via a gitignored env file"
+      ],
+      "versionTargets": []
+    }
+  ]
+}

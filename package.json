@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -11,10 +11,33 @@
     "setup": "node scripts/setup.mjs",
     "postinstall": "node scripts/install-hooks.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
+    "gate": "node scripts/gate.mjs",
+    "gate:list": "node scripts/gate.mjs --list",
+    "test": "node --test scripts/tests/*.test.mjs",
+    "stack:detect": "node scripts/stacks.mjs detect",
+    "stack:list": "node scripts/stacks.mjs list",
+    "stack:show": "node scripts/stacks.mjs show",
+    "stack:apply": "node scripts/stacks.mjs apply",
+    "stack:reapply": "node scripts/stacks.mjs apply --force",
+    "stack:validate": "node scripts/stacks.mjs validate",
+    "agents:sync": "node scripts/sync-agents.mjs",
+    "agents:check": "node scripts/sync-agents.mjs --check",
     "version:get": "node scripts/version.mjs get",
     "version:sync": "node scripts/version.mjs sync",
     "version:patch": "node scripts/version.mjs patch",
     "version:minor": "node scripts/version.mjs minor",
     "version:major": "node scripts/version.mjs major"
+  },
+  "vibe": {
+    "stack": "node",
+    "gates": {
+      "lint": [
+        "node scripts/sync-agents.mjs --check",
+        "node scripts/stacks.mjs validate"
+      ],
+      "typecheck": null,
+      "test": "npm run test --if-present",
+      "build": null
+    }
   }
 }

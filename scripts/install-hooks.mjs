@@ -5,6 +5,10 @@
 // `postinstall` and exposed as `npm run hooks:install`.
 //
 // Safety guards (each closes a real, reproduced failure):
+//   - dubious ownership: git refuses EVERY command with exit 128 when the repo
+//     is owned by another user/SID (common on Windows after a drive move or a
+//     reinstall). Reporting that as "not a git work tree" would send someone to
+//     `git init` on top of an existing repo — so name the real cause instead.
 //   - toplevel check: when this folder sits INSIDE another repository (zip/degit
 //     copy into a monorepo without its own .git), a naive install would write
 //     core.hooksPath into the PARENT repo and silently disable all of its hooks.
@@ -12,40 +16,30 @@
 //   - beads: `bd init` moves core.hooksPath to `.beads/hooks` and CHAINS this
 //     hook — expected; leave it alone, but warn if the chain lost our hook.
 
-import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { at, git, norm, note as write, ROOT, safeDirectoryHint } from "./lib/util.mjs";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const HOOK_DIR = join(ROOT, ".githooks");
+const HOOK_DIR = at(".githooks");
 const HOOK = "post-commit";
 
-function git(args) {
-  return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
-}
+const note = (msg) => write(msg, "[hooks] ");
 
-function note(message) {
-  process.stderr.write(`[hooks] ${message}\n`);
-}
-
-/** Normalized for comparison: git prints forward-slash paths on Windows, and
- *  drive-letter case can differ. */
-function norm(p) {
-  const r = resolve(p).replace(/\\/g, "/");
-  return process.platform === "win32" ? r.toLowerCase() : r;
-}
-
-let toplevel;
-try {
-  toplevel = git(["rev-parse", "--show-toplevel"]);
-} catch {
-  note("not a git work tree — skipping hook install");
+const toplevel = git(["rev-parse", "--show-toplevel"]);
+if (!toplevel.ok) {
+  if (toplevel.dubious) {
+    note("git refuses to read this repository: it is owned by a different user account.");
+    note("This is NOT a missing repo — do not run `git init`. Fix the ownership exception:");
+    note(`  ${safeDirectoryHint()}`);
+    note("then re-run `npm run setup`.");
+  } else {
+    note("not a git work tree — skipping hook install");
+  }
   process.exit(0);
 }
 
-if (norm(toplevel) !== norm(ROOT)) {
-  note(`this folder sits inside another repository (${toplevel}) — skipping hook install`);
+if (norm(toplevel.out) !== norm(ROOT)) {
+  note(`this folder sits inside another repository (${toplevel.out}) — skipping hook install`);
   note("run `git init` here first if this is meant to be its own repo, then `npm run setup`.");
   process.exit(0);
 }
@@ -55,40 +49,34 @@ if (!existsSync(join(HOOK_DIR, HOOK))) {
   process.exit(0);
 }
 
-try {
-  let current = "";
-  try {
-    current = git(["config", "--get", "core.hooksPath"]);
-  } catch {
-    current = "";
-  }
-  if (current === ".githooks") {
-    note("already installed (core.hooksPath=.githooks)");
-  } else if (current.endsWith(".beads/hooks") || current.endsWith(".beads\\hooks")) {
-    // beads owns the chain — verify our hook actually survived inside it
-    // (either the full hook text, or a delegator pointing at .githooks/).
-    const chained = join(ROOT, ".beads", "hooks", HOOK);
-    const chainedBody = existsSync(chained) ? readFileSync(chained, "utf8") : "";
-    if (chainedBody.includes("version.mjs") || chainedBody.includes(`.githooks/${HOOK}`)) {
-      note(`beads owns the hook chain (${current}) — version hook is chained, leaving as is`);
-    } else {
-      note(`WARNING: beads owns the hook chain (${current}) but the auto-version ${HOOK} hook`);
-      note(`is NOT chained there. Re-run \`bd init\` on a clean tree, or copy .githooks/${HOOK}`);
-      note("into .beads/hooks/ (bd chains pre-existing hooks only when they exist at init time).");
-    }
-  } else if (current) {
-    note(`core.hooksPath is already "${current}" (another hook manager?) — not overwriting.`);
-    note(`to enable the auto-version hook manually: git config core.hooksPath .githooks`);
+const current = git(["config", "--get", "core.hooksPath"]);
+const hooksPath = current.ok ? current.out : "";
+
+if (hooksPath === ".githooks") {
+  note("already installed (core.hooksPath=.githooks)");
+} else if (hooksPath.endsWith(".beads/hooks") || hooksPath.endsWith(".beads\\hooks")) {
+  // beads owns the chain — verify our hook actually survived inside it (either
+  // the full hook text, or a delegator pointing at .githooks/).
+  const chained = at(".beads", "hooks", HOOK);
+  const chainedBody = existsSync(chained) ? readFileSync(chained, "utf8") : "";
+  if (chainedBody.includes("version.mjs") || chainedBody.includes(`.githooks/${HOOK}`)) {
+    note(`beads owns the hook chain (${hooksPath}) — version hook is chained, leaving as is`);
   } else {
-    git(["config", "core.hooksPath", ".githooks"]);
-    note("installed: core.hooksPath → .githooks");
+    note(`WARNING: beads owns the hook chain (${hooksPath}) but the auto-version ${HOOK} hook`);
+    note(`is NOT chained there. Re-run \`bd init\` on a clean tree, or copy .githooks/${HOOK}`);
+    note("into .beads/hooks/ (bd chains pre-existing hooks only when they exist at init time).");
   }
-  // Best-effort exec bit (required on POSIX; a no-op on Windows).
-  try {
-    chmodSync(join(HOOK_DIR, HOOK), 0o755);
-  } catch {
-    /* ignore — Windows / restricted FS */
-  }
-} catch (e) {
-  note(`install skipped: ${e instanceof Error ? e.message : String(e)}`);
+} else if (hooksPath) {
+  note(`core.hooksPath is already "${hooksPath}" (another hook manager?) — not overwriting.`);
+  note("to enable the auto-version hook manually: git config core.hooksPath .githooks");
+} else {
+  const set = git(["config", "core.hooksPath", ".githooks"]);
+  note(set.ok ? "installed: core.hooksPath → .githooks" : `install skipped: ${set.out}`);
+}
+
+// Best-effort exec bit (required on POSIX; a no-op on Windows).
+try {
+  chmodSync(join(HOOK_DIR, HOOK), 0o755);
+} catch {
+  /* ignore — Windows / restricted FS */
 }

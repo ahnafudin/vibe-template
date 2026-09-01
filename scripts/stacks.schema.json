@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "vibe-template stack registry",
+  "description": "Framework-first registry. Every entry is DATA — adding a framework must never require a code change. Validated by scripts/tests/stacks.test.mjs, so a malformed entry turns `npm run gate` red.",
+  "type": "object",
+  "required": ["stacks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "stacks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/stack" }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "signal": {
+      "description": "One detection probe. Exactly one key.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Repo-relative path; `*` is allowed in the LAST segment only (e.g. `next.config.*`, `*.csproj`)."
+        },
+        "dir": { "type": "string", "description": "Repo-relative directory that must exist." },
+        "dep": {
+          "type": "string",
+          "description": "Package name in package.json dependencies/devDependencies/peerDependencies."
+        },
+        "content": {
+          "type": "array",
+          "description": "[path, substring] — path may glob its last segment; matches when the file contains the substring.",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "command": {
+      "description": "A gate command: one shell line, an ordered list of them, or \"\"/null to declare the gate deliberately absent.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "null" }
+      ]
+    },
+    "stack": {
+      "type": "object",
+      "required": ["id", "tier", "label"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "tier": {
+          "enum": ["language", "framework"],
+          "description": "`framework` entries outrank `language` entries when both match."
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "extends": {
+          "description": "Base stack id(s) to inherit gates/ignore/conventions from.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "false = commands are best-effort. docs/STACK.md then carries a visible 'verify before trusting' banner instead of pretending confidence."
+        },
+        "detect": {
+          "type": "object",
+          "properties": {
+            "any": { "type": "array", "items": { "$ref": "#/definitions/signal" } },
+            "all": { "type": "array", "items": { "$ref": "#/definitions/signal" } }
+          },
+          "additionalProperties": false
+        },
+        "weight": {
+          "type": "integer",
+          "description": "Optional tie-breaker added to the matched-signal count when ranking."
+        },
+        "gates": {
+          "type": "object",
+          "properties": {
+            "lint": { "$ref": "#/definitions/command" },
+            "typecheck": { "$ref": "#/definitions/command" },
+            "test": { "$ref": "#/definitions/command" },
+            "build": { "$ref": "#/definitions/command" }
+          },
+          "additionalProperties": { "$ref": "#/definitions/command" }
+        },
+        "ignore": { "type": "array", "items": { "type": "string" } },
+        "coreLayer": {
+          "type": "string",
+          "description": "Where heavy logic belongs in THIS framework — fills the 'Core-first' rule in AGENTS.md."
+        },
+        "conventions": { "type": "array", "items": { "type": "string" } },
+        "versionTargets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Documentation only. scripts/version.mjs detects targets itself and never reads this file."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

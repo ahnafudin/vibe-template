@@ -1,0 +1,30 @@
+# One workflow for every stack: CI runs the same `npm run gate` a developer and
+# an AI agent run locally, so "gates green" means the same thing everywhere.
+# The actual commands come from package.json -> vibe.gates.
+name: gate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # The tooling manifest has no dependencies; --ignore-scripts skips the
+      # postinstall git-hook install, which is a local-developer concern.
+      - name: Install tooling
+        run: npm install --ignore-scripts
+
+      # TODO:fill — add your language toolchain here (setup-python, setup-go,
+      # setup-java, shivammathur/setup-php, dart-lang/setup-dart, ...) plus the
+      # dependency install your gates need. `npm run gate` then runs the rest.
+
+      - name: Quality gates
+        run: npm run gate

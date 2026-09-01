@@ -1,0 +1,27 @@
+# Universal formatting contract — respected by every major editor and by most
+# AI coding tools. Keeping it here means a new agent does not have to guess.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{py,rs,java,kt,kts,cs,go,php,rb,ex,exs,dart,swift,c,h,cpp,hpp}]
+indent_size = 4
+
+[*.go]
+indent_style = tab
+
+[Makefile]
+indent_style = tab
+
+# Two trailing spaces are a hard line break in Markdown — never strip them.
+[*.md]
+trim_trailing_whitespace = false
+
+[{*.bat,*.cmd,*.ps1}]
+end_of_line = crlf

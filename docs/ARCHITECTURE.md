@@ -1,7 +1,7 @@
 # Architecture — <PROJECT_NAME>
 
 <!-- TODO:fill. This file is the FIRST stop before inventing a new pattern
-     (see CLAUDE.md → "When unsure"). Keep it current: stale architecture docs
+     (see AGENTS.md → "When unsure"). Keep it current: stale architecture docs
      are worse than none. -->
 
 ## Overview
