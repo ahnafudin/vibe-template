@@ -31,7 +31,15 @@ describe("npm script surface", () => {
   it("exposes a flagless alternative for every flag-taking command", () => {
     // The fix for npm's flag swallowing is a dedicated script, not asking
     // everyone to remember `npm run gate -- --list`.
-    for (const script of ["gate", "gate:list", "stack:apply", "stack:reapply", "agents:sync", "agents:check", "test"]) {
+    for (const script of [
+      "gate",
+      "gate:list",
+      "stack:apply",
+      "stack:reapply",
+      "agents:sync",
+      "agents:check",
+      "test:template",
+    ]) {
       assert.ok(pkg.scripts[script], `package.json is missing the "${script}" script`);
     }
     assert.match(pkg.scripts["gate:list"], /--list/);
@@ -85,7 +93,11 @@ describe("documented commands exist", () => {
     for (const file of [...docFiles(), ...TARGETS.map((t) => t.path)]) {
       const body = readIfExists(at(file));
       if (!body) continue;
-      for (const m of body.matchAll(/npm run ([a-z][a-z0-9:]*)/g)) {
+      // `npm run lint --if-present` is CORRECT when `lint` does not exist —
+      // tolerating absence is the entire point of the flag, and the generated
+      // docs/STACK.md prints exactly that for a project with no lint step.
+      for (const m of body.matchAll(/npm run ([a-z][a-z0-9:]*)(\s+--if-present)?/g)) {
+        if (m[2]) continue;
         if (!known.has(m[1])) problems.push(`${file}: npm run ${m[1]}`);
       }
     }

@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -13,7 +13,7 @@
     "hooks:install": "node scripts/install-hooks.mjs",
     "gate": "node scripts/gate.mjs",
     "gate:list": "node scripts/gate.mjs --list",
-    "test": "node --test scripts/tests/*.test.mjs",
+    "test:template": "node --test scripts/tests/*.test.mjs",
     "stack:detect": "node scripts/stacks.mjs detect",
     "stack:list": "node scripts/stacks.mjs list",
     "stack:show": "node scripts/stacks.mjs show",
@@ -37,7 +37,7 @@
         "node scripts/stacks.mjs validate"
       ],
       "typecheck": null,
-      "test": "npm run test --if-present",
+      "test": "npm run test:template",
       "build": null
     }
   }

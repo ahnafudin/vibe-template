@@ -604,7 +604,9 @@
       "conventions": [
         "Every Rust command validates its own arguments; the frontend is untrusted",
         "Keep the tauri.conf.json allowlist/capabilities as narrow as possible",
-        "Heavy work goes in an `async` command or a thread - never block the main thread"
+        "Heavy work goes in an `async` command or a thread - never block the main thread",
+        "`src-tauri/icons/icon.ico` is REQUIRED on Windows — tauri-build fails the whole compile without it, long before any of your code is checked",
+        "The first `npm run gate` compiles the entire Rust dependency tree (several minutes); it is not hung"
       ],
       "versionTargets": [
         "package.json",
