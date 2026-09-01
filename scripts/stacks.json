@@ -987,7 +987,7 @@
       "tier": "framework",
       "label": "SolidStart",
       "extends": "node",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -999,13 +999,14 @@
         "build": "npm run build"
       },
       "ignore": [
-        ".vinxi/",
         ".output/",
+        ".vinxi/",
         "dist/"
       ],
       "coreLayer": "server functions (`\"use server\"`) - components stay thin",
       "conventions": [
-        "Fine-grained signals; do not import React re-render habits"
+        "Fine-grained signals; do not import React re-render habits",
+        "SolidStart v2 builds with Vite + Nitro and emits `.output/`; `.vinxi/` is a v1 artefact, kept in the ignore list for older projects"
       ],
       "versionTargets": [
         "package.json"
@@ -1121,7 +1122,7 @@
       "tier": "framework",
       "label": "AdonisJS",
       "extends": "node",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1146,7 +1147,8 @@
       "coreLayer": "app/services - controllers stay thin and Lucid models hold no orchestration",
       "conventions": [
         "Validators for all input",
-        "Migrations for every schema change"
+        "Migrations for every schema change",
+        "`node ace test` exits 0 with no tests, unlike pytest — a green test gate here does not mean tests exist"
       ],
       "versionTargets": [
         "package.json"
@@ -1889,7 +1891,7 @@
       "tier": "framework",
       "label": "Rocket (Rust)",
       "extends": "rust",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
