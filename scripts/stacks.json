@@ -881,7 +881,7 @@
       },
       "gates": {
         "lint": "npx ng lint",
-        "test": "npx ng test --watch=false --browsers=ChromeHeadless",
+        "test": "npx ng test --watch=false",
         "build": "npx ng build"
       },
       "ignore": [
@@ -892,7 +892,8 @@
       "conventions": [
         "Standalone components for new code",
         "RxJS: always unsubscribe (takeUntilDestroyed) - a leaked subscription is a bug",
-        "OnPush change detection by default"
+        "OnPush change detection by default",
+        "Angular 20+ runs tests on Vitest, not Karma: `--browsers=ChromeHeadless` now demands a separate @vitest/browser-* provider and fails without one. `ng test --watch=false` is the portable form"
       ],
       "versionTargets": [
         "package.json"
@@ -1322,7 +1323,7 @@
       "tier": "framework",
       "label": "Ionic / Capacitor",
       "extends": "node",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1330,6 +1331,9 @@
           },
           {
             "file": "capacitor.config.*"
+          },
+          {
+            "dep": "@capacitor/core"
           }
         ]
       },
@@ -1344,7 +1348,8 @@
       ],
       "coreLayer": "the web service layer - native plugins are wrapped behind one adapter",
       "conventions": [
-        "Run `npx cap sync` after every native dependency change"
+        "Run `npx cap sync` after every native dependency change",
+        "An Ionic app is also an Angular/React/Vue app — Ionic wins primary because only it carries the native ignore rules, and the underlying framework stays as a secondary so its real gates still run"
       ],
       "versionTargets": [
         "package.json"
