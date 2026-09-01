@@ -23,6 +23,11 @@ If your framework is missing, add one entry to `scripts/stacks.json` (see the ex
 `README.md`) and run `npm run stack:validate`. No code change is needed — and please keep
 `"verified": false` until you have actually run the commands.
 
+> The template ships `vibe.gates` marked `"ownedByTemplate": true` — those are the commands the
+> TEMPLATE uses to maintain itself. The first `npm run stack:apply` in a renamed project replaces
+> them with your framework's and drops the marker. After that they are yours: nothing overwrites
+> them again unless you ask (`npm run stack:reapply`).
+
 Then fill the placeholders — search for `TODO:fill`:
 
 - [ ] `AGENTS.md` — project name · Project summary · Stack table · Layer responsibilities ·

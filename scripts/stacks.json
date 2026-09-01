@@ -551,7 +551,9 @@
       "conventions": [
         "`contextIsolation: true`, `nodeIntegration: false`; the only bridge is a preload contextBridge",
         "Validate every IPC payload in main - the renderer is untrusted",
-        "Never load remote content into a window that has preload access"
+        "Never load remote content into a window that has preload access",
+        "This template sets `\"type\": \"module\"`, so name main and preload `.cjs` — an ESM preload additionally needs `sandbox: false` and Electron >= 28",
+        "`npm run gate` runs your `build` script: point it at electron-builder/Forge, or at minimum a smoke launch that boots main + preload + renderer"
       ],
       "versionTargets": [
         "package.json"

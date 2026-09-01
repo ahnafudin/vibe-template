@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -30,6 +30,7 @@
   },
   "vibe": {
     "stack": "node",
+    "ownedByTemplate": true,
     "gates": {
       "lint": [
         "node scripts/sync-agents.mjs --check",

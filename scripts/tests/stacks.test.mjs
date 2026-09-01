@@ -4,11 +4,11 @@
 // detection rules that are easy to get subtly wrong.
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import { detect, detectResolved, loadRegistry, mergeGates, mergeIgnore, renderDoc, resolve, validateRegistry } from "../stacks.mjs";
+import { apply, detect, detectResolved, loadRegistry, mergeGates, mergeIgnore, renderDoc, resolve, validateRegistry } from "../stacks.mjs";
 
 const stacks = loadRegistry();
 
@@ -259,5 +259,63 @@ describe("generated docs/STACK.md", () => {
     const doc = renderDoc({ primary: null, secondary: [] }, {});
     assert.match(doc, /not detected yet/i);
     assert.match(doc, /stack:apply/);
+  });
+});
+
+describe("apply(): the template's own gates must not survive into a project", () => {
+  // Found by actually generating an Electron app from this template: the new
+  // project inherited the template's maintenance gates (validate the registry,
+  // check the generated agent files) and — because they were non-empty — the
+  // "never clobber hand-tuned gates" rule preserved them forever. `npm run gate`
+  // reported green having never once run the Electron build.
+  const TEMPLATE_GATES = {
+    lint: ["node scripts/sync-agents.mjs --check", "node scripts/stacks.mjs validate"],
+    typecheck: null,
+    test: "npm run test --if-present",
+    build: null,
+  };
+
+  const project = (name, vibe) => {
+    const dir = repo({
+      "package.json": pkg({ name, version: "0.1.0", devDependencies: { electron: "^32.0.0" }, vibe }),
+      "docs/.keep": "",
+    });
+    return dir;
+  };
+
+  it("replaces them once the project has been renamed", () => {
+    const dir = project("my-electron-app", { stack: "node", ownedByTemplate: true, gates: TEMPLATE_GATES });
+    const result = apply({ root: dir });
+    assert.equal(result.primary.id, "electron");
+    const after = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).vibe;
+    assert.equal(after.stack, "electron");
+    assert.equal(after.gates.build, "npm run build", "the Electron build gate must be wired in");
+    assert.ok(!("ownedByTemplate" in after), "the marker is one-shot and must be dropped");
+    assert.notDeepEqual(after.gates.lint, TEMPLATE_GATES.lint);
+  });
+
+  it("keeps them in the template itself, which is still unrenamed", () => {
+    const dir = project("my-project", { stack: "node", ownedByTemplate: true, gates: TEMPLATE_GATES });
+    apply({ root: dir });
+    const after = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).vibe;
+    assert.deepEqual(after.gates, TEMPLATE_GATES, "the template maintains itself with these");
+    assert.equal(after.ownedByTemplate, true);
+  });
+
+  it("never overwrites gates a developer actually wrote", () => {
+    const mine = { lint: "eslint .", test: "vitest run" };
+    const dir = project("my-electron-app", { stack: "electron", gates: mine });
+    apply({ root: dir });
+    const after = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).vibe;
+    assert.deepEqual(after.gates, mine, "no ownedByTemplate marker => hand-tuned => untouched");
+  });
+
+  it("documents the gates that will actually run, not the registry's opinion", () => {
+    const mine = { lint: "eslint .", test: "vitest run" };
+    const dir = project("my-electron-app", { stack: "electron", gates: mine });
+    apply({ root: dir });
+    const doc = readFileSync(join(dir, "docs", "STACK.md"), "utf8");
+    assert.match(doc, /eslint \./);
+    assert.match(doc, /vitest run/);
   });
 });

@@ -20,7 +20,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { validate } from "./lib/jsonschema.mjs";
-import { at, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
+import { at, isUnrenamedTemplate, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
 
 const REGISTRY = at("scripts", "stacks.json");
 const MAX_SCAN_BYTES = 1024 * 1024; // never slurp a huge file just to grep it
@@ -368,17 +368,28 @@ export function apply({ force = false, root = ROOT } = {}) {
   const raw = existsSync(pkgPath) ? readFileSync(pkgPath, "utf8") : null;
   const pkg = raw ? JSON.parse(raw) : null;
   const hadGates = Boolean(pkg?.vibe?.gates && Object.keys(pkg.vibe.gates).length > 0);
-  if (pkg && found.primary && (!hadGates || force)) {
-    pkg.vibe = { ...pkg.vibe, stack: found.primary.id, gates: detected };
+  // The template ships gates for maintaining ITSELF (validate the registry, check
+  // the generated agent files). Copied into a new project those are nonsense —
+  // and because they are non-empty, "never clobber a hand-tuned block" would
+  // preserve them forever: an Electron app would report a green gate having
+  // never once run its build. `ownedByTemplate` marks them as scaffolding, to be
+  // replaced the first time a RENAMED project detects its real stack. In the
+  // template itself (still named `my-project`) they are kept.
+  const templateOwned = Boolean(pkg?.vibe?.ownedByTemplate) && !isUnrenamedTemplate(root);
+  const replaceGates = !hadGates || templateOwned || force;
+  if (pkg && found.primary && replaceGates) {
+    const vibe = { ...pkg.vibe, stack: found.primary.id, gates: detected };
+    delete vibe.ownedByTemplate; // one-shot: they are this project's gates now
+    pkg.vibe = vibe;
     if (writeIfChanged(pkgPath, JSON.stringify(pkg, null, indentOf(raw)) + "\n")) {
-      changed.push("package.json (vibe.gates)");
+      changed.push(templateOwned ? "package.json (replaced the template's own gates)" : "package.json (vibe.gates)");
     }
   }
 
   // What `npm run gate` will ACTUALLY run: a hand-tuned block in package.json
   // wins over the registry defaults. The generated doc must show this, not the
   // registry's opinion — otherwise it documents commands nobody runs.
-  const gates = hadGates && !force ? pkg.vibe.gates : detected;
+  const gates = replaceGates ? detected : pkg.vibe.gates;
 
   // 2. .gitignore → managed block of framework artefacts
   const giPath = join(root, ".gitignore");
