@@ -202,6 +202,33 @@ describe("detection", () => {
     assert.equal(detectResolved(dir, stacks).primary.id, "spring-boot");
   });
 
+  it("does not let infrastructure hijack an application repo", () => {
+    // Found in CI: slim-skeleton ships a docker-compose.yml, and the compose
+    // entry took the tie alphabetically. A compose file, a chart or some .tf
+    // sits ALONGSIDE an app in a large share of real repos, so those entries
+    // carry a negative weight and lose every tie.
+    const dir = repo({
+      "composer.json": pkg({ require: { "slim/slim": "^4" } }),
+      "docker-compose.yml": "services: { web: { image: php } }",
+    });
+    assert.equal(detectResolved(dir, stacks).primary.id, "slim");
+  });
+
+  it("still picks infrastructure when it is genuinely all there is", () => {
+    const dir = repo({ "docker-compose.yml": "services: { web: { image: nginx } }" });
+    assert.equal(detectResolved(dir, stacks).primary.id, "docker-compose");
+  });
+
+  it("finds a build file in a subdirectory, not just the repo root", () => {
+    // Ktor matched nothing at all in CI: `gradle init` writes app/build.gradle.kts
+    // and the pattern could only see the root.
+    const dir = repo({
+      "settings.gradle.kts": 'rootProject.name = "fx"',
+      "app/build.gradle.kts": 'dependencies { implementation("io.ktor:ktor-server-core:3.0.0") }',
+    });
+    assert.equal(detectResolved(dir, stacks).primary.id, "ktor");
+  });
+
   it("falls back to the language when no framework matches", () => {
     const dir = repo({ "go.mod": "module example.com/plain\n" });
     assert.equal(detectResolved(dir, stacks).primary.id, "go");

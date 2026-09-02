@@ -60,6 +60,9 @@ jobs:
               composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
               composer require --dev --no-interaction --with-all-dependencies \
                 squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit
+              # phpcs exits 3 until the standard is REGISTERED, which installing
+              # it does not do on its own.
+              vendor/bin/phpcs --config-set installed_paths ../../wp-coding-standards/wpcs
 
           # ---- JVM ----
           - id: quarkus
@@ -171,10 +174,13 @@ jobs:
         if: failure()
         run: |
           if [ -f verify.log ]; then
-            perl -pe 's/\e\[[0-9;]*m//g' verify.log \
-              | grep -E "FAILED|detected|ranking|\\\$ " \
-              | head -12 \
+            perl -pe 's/\e\[[0-9;]*m//g' verify.log > clean.log
+            # The verdict first, then the tail: when a GATE fails, its own output
+            # is what says why, and that is nowhere else readable without a token.
+            grep -E "FAILED|detected |ranking " clean.log | head -6 \
               | while IFS= read -r line; do echo "::error::${{ matrix.id }} — $line"; done
+            tail -12 clean.log \
+              | while IFS= read -r line; do echo "::error::${{ matrix.id }} | $line"; done
           else
             echo "::error::${{ matrix.id }} — scaffold failed before verification ran"
           fi

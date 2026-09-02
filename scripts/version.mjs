@@ -29,6 +29,7 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { expandGlob, isFile } from "./lib/glob.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PKG = join(ROOT, "package.json");
@@ -97,45 +98,11 @@ function rel(path) {
   return path.startsWith(ROOT) ? path.slice(ROOT.length + 1).split("\\").join("/") : path;
 }
 
-function isFile(p) {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
-/** Expand one repo-relative pattern; `*` is allowed in ANY segment (a .NET repo
- *  keeps its projects at `src/<Name>/<Name>.csproj`), but never crosses a `/`. */
-function expandGlob(base, segments) {
-  if (segments.length === 0) return [base];
-  const [head, ...rest] = segments;
-  if (!head.includes("*")) {
-    const next = join(base, head);
-    return existsSync(next) ? expandGlob(next, rest) : [];
-  }
-  const re = new RegExp(`^${head.split("*").map(escapeRe).join("[^/]*")}$`, "i");
-  let entries;
-  try {
-    entries = readdirSync(base, { withFileTypes: true });
-  } catch {
-    return []; // unreadable directory — nothing to sync there
-  }
-  const out = [];
-  for (const e of entries) {
-    if (!re.test(e.name)) continue;
-    const next = join(base, e.name);
-    if (rest.length === 0) out.push(next);
-    else if (e.isDirectory()) out.push(...expandGlob(next, rest));
-  }
-  return out;
-}
-
 /** Existing files matching any of the given repo-relative glob patterns. */
 function find(...patterns) {
   const out = [];
   for (const pattern of patterns) {
-    for (const p of expandGlob(ROOT, pattern.split("/"))) if (isFile(p) && !out.includes(p)) out.push(p);
+    for (const p of expandGlob(ROOT, pattern)) if (isFile(p) && !out.includes(p)) out.push(p);
   }
   return out;
 }

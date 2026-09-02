@@ -290,13 +290,13 @@ describe("glob expansion", () => {
     writeFileSync(join(dir, "src", "Api", "Api.csproj"), "<Project />");
     writeFileSync(join(dir, "src", "Core", "Core.csproj"), "<Project />");
     writeFileSync(join(dir, "src", "Core", "notes.md"), "x");
-    const hits = __test.expandGlob(dir, ["src", "*", "*.csproj"]);
+    const hits = __test.expandGlob(dir, "src/*/*.csproj");
     assert.equal(hits.length, 2);
     assert.ok(hits.every((p) => p.endsWith(".csproj")));
   });
 
   it("returns nothing for a path that does not exist", () => {
-    assert.deepEqual(__test.expandGlob(dir, ["nope", "*.txt"]), []);
+    assert.deepEqual(__test.expandGlob(dir, "nope/*.txt"), []);
   });
 });
 

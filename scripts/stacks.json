@@ -86,10 +86,10 @@
         ]
       },
       "gates": {
-        "lint": "bun run lint --if-present",
+        "lint": null,
         "typecheck": "bunx tsc --noEmit",
         "test": "bun test",
-        "build": "bun run build --if-present"
+        "build": null
       },
       "ignore": [
         "node_modules/",
@@ -97,7 +97,8 @@
       ],
       "coreLayer": "src/services - pure modules kept apart from the server entrypoint",
       "conventions": [
-        "Use the built-in `bun test`; do not add a second runner without a reason"
+        "Use the built-in `bun test`; do not add a second runner without a reason",
+        "bun has no `--if-present`, so the npm idiom for an optional script does not port — name your real commands in `vibe.gates` instead of relying on a no-op"
       ],
       "versionTargets": [
         "package.json"
@@ -335,7 +336,7 @@
         ]
       },
       "gates": {
-        "lint": "dotnet format --verify-no-changes",
+        "lint": null,
         "typecheck": "dotnet build --no-restore",
         "test": "dotnet test",
         "build": "dotnet build -c Release"
@@ -348,7 +349,8 @@
       "coreLayer": "the Application/Domain project - the Web/UI project is presentation only",
       "conventions": [
         "Nullable reference types enabled",
-        "async/await all the way down; avoid `.Result`"
+        "async/await all the way down; avoid `.Result`",
+        "`dotnet format --verify-no-changes` fails (exit 2) on freshly generated `dotnet new` output, so it is not a default gate here — add it once your own code is formatted"
       ],
       "versionTargets": [
         "*.csproj",
@@ -1587,7 +1589,8 @@
       "conventions": [
         "Prefix EVERY function, option and table with the plugin slug - the global namespace is shared",
         "Escape on output (`esc_html`/`esc_attr`), sanitise on input, nonce every form",
-        "The plugin version lives in the PHP header; sync it at release (see docs/VERSIONING.md)"
+        "The plugin version lives in the PHP header; sync it at release (see docs/VERSIONING.md)",
+        "`phpcs --standard=WordPress` exits 3 until wpcs is REGISTERED, not merely installed: `phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs` (the composer plugin does it for you only when allow-plugins permits it to run)"
       ],
       "versionTargets": [
         "style.css"
@@ -2027,6 +2030,12 @@
               "build.gradle*",
               "io.ktor"
             ]
+          },
+          {
+            "content": [
+              "*/build.gradle*",
+              "io.ktor"
+            ]
           }
         ]
       },
@@ -2121,6 +2130,12 @@
               "*.csproj",
               "Microsoft.AspNetCore.Components"
             ]
+          },
+          {
+            "file": "_Imports.razor"
+          },
+          {
+            "file": "*/_Imports.razor"
           }
         ]
       },
@@ -2332,9 +2347,11 @@
       "coreLayer": "modules in modules/ - the root module is composition only",
       "conventions": [
         "Remote state with locking - never commit local state",
-        "`*.tfvars` holds secrets: gitignored, not reviewed"
+        "`*.tfvars` holds secrets: gitignored, not reviewed",
+        "Weighted below application frameworks on purpose: a repo that ships a compose file, Terraform or a chart usually has an app too, and that app is the primary stack"
       ],
-      "versionTargets": []
+      "versionTargets": [],
+      "weight": -1
     },
     {
       "id": "helm",
@@ -2360,11 +2377,13 @@
       "coreLayer": "templates/ plus values.yaml - never hardcode a value in a template",
       "conventions": [
         "`version` (the chart) and `appVersion` (the app) differ - scripts/version.mjs syncs both",
-        "Every new value gets a default in values.yaml"
+        "Every new value gets a default in values.yaml",
+        "Weighted below application frameworks on purpose: a repo that ships a compose file, Terraform or a chart usually has an app too, and that app is the primary stack"
       ],
       "versionTargets": [
         "Chart.yaml"
-      ]
+      ],
+      "weight": -1
     },
     {
       "id": "docker-compose",
@@ -2397,9 +2416,11 @@
       "coreLayer": "the application image - compose is local orchestration, not a place for logic",
       "conventions": [
         "Pin image tags (never `latest`)",
-        "Secrets via a gitignored env file"
+        "Secrets via a gitignored env file",
+        "Weighted below application frameworks on purpose: a repo that ships a compose file, Terraform or a chart usually has an app too, and that app is the primary stack"
       ],
-      "versionTargets": []
+      "versionTargets": [],
+      "weight": -1
     }
   ]
 }

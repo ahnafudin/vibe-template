@@ -16,9 +16,10 @@
 // never require touching this file. `scripts/version.mjs` deliberately does NOT
 // read the registry — versioning must keep working even if a stack entry is wrong.
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expandGlob, isDir, isFile } from "./lib/glob.mjs";
 import { validate } from "./lib/jsonschema.mjs";
 import { at, isUnrenamedTemplate, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
 
@@ -118,44 +119,9 @@ export function resolve(stacks, id) {
 
 // --- detection ---
 
-/** Expand a repo-relative path whose LAST segment may contain `*`. */
+/** Existing paths matching a repo-relative glob (any segment may use `*`). */
 function expand(pattern, root) {
-  if (!pattern.includes("*")) {
-    const full = join(root, pattern);
-    return existsSync(full) ? [full] : [];
-  }
-  const dir = dirname(pattern);
-  const base = pattern.slice(dir === "." ? 0 : dir.length + 1);
-  const full = join(root, dir);
-  if (!existsSync(full)) return [];
-  const re = new RegExp(`^${base.split("*").map(escapeRe).join(".*")}$`, "i");
-  try {
-    return readdirSync(full)
-      .filter((n) => re.test(n))
-      .map((n) => join(full, n));
-  } catch {
-    return [];
-  }
-}
-
-function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function isFile(p) {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
-function isDir(p) {
-  try {
-    return statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
+  return expandGlob(root, pattern);
 }
 
 function grep(path, needle) {
