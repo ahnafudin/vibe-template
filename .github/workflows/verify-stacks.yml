@@ -164,6 +164,21 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # The step summary above is only visible in the web UI, and a job's log
+      # needs a token. Annotations need neither — so the reason an entry failed
+      # is echoed here, where it can be read straight from the public API.
+      - name: Surface the reason as an annotation
+        if: failure()
+        run: |
+          if [ -f verify.log ]; then
+            perl -pe 's/\e\[[0-9;]*m//g' verify.log \
+              | grep -E "FAILED|detected|ranking|\\\$ " \
+              | head -12 \
+              | while IFS= read -r line; do echo "::error::${{ matrix.id }} — $line"; done
+          else
+            echo "::error::${{ matrix.id }} — scaffold failed before verification ran"
+          fi
+
   summary:
     name: result
     needs: verify
