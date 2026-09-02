@@ -133,9 +133,16 @@ jobs:
       - name: Verify detection and gates
         id: verify
         run: |
-          node scripts/verify-stack.mjs fixture ${{ matrix.id }} \
-            ${{ matrix.detectOnly && ' ' || '--run' }} | tee verify.log
-          echo "status=pass" >> "$GITHUB_OUTPUT"
+          # No pipe to `tee`: the default shell here is `bash -e`, WITHOUT
+          # pipefail, so a pipeline reports tee's exit code and a failed
+          # verification would be reported as a pass. Redirect, then decide.
+          if node scripts/verify-stack.mjs fixture ${{ matrix.id }} \
+            ${{ matrix.detectOnly && ' ' || '--run' }} > verify.log 2>&1; then
+            cat verify.log
+          else
+            cat verify.log
+            exit 1
+          fi
 
       - name: Report
         if: always()
