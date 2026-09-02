@@ -53,7 +53,13 @@ jobs:
             scaffold: |
               mkdir -p fixture && cd fixture
               printf '/*\nTheme Name: Fixture\nVersion: 0.1.0\n*/\n' > style.css
-              composer require --dev --no-interaction squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit
+              # `composer require` in an empty directory has no manifest to write
+              # to, and wpcs pulls a phpcs installer plugin composer will not run
+              # unattended unless it is allowed explicitly.
+              composer init --no-interaction --name=acme/fixture
+              composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+              composer require --dev --no-interaction --with-all-dependencies \
+                squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit
 
           # ---- JVM ----
           - id: quarkus
@@ -89,8 +95,11 @@ jobs:
           - id: sinatra
             scaffold: |
               mkdir -p fixture && cd fixture
-              bundle init
-              bundle add sinatra rackup rspec rubocop --skip-install
+              # The Gemfile is written outright rather than assembled with
+              # `bundle add`, which resolves and installs one gem at a time and
+              # gives a less deterministic scaffold.
+              printf 'source "https://rubygems.org"\n' > Gemfile
+              printf 'gem "sinatra"\ngem "rackup"\ngem "rspec"\ngem "rubocop"\n' >> Gemfile
               bundle install
 
           # ---- Bun ----
