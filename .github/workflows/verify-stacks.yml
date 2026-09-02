@@ -1,0 +1,160 @@
+# Verify registry entries against real, upstream-scaffolded projects.
+#
+# `verified` in scripts/stacks.json claims two things: these detection markers
+# match the real framework, and these gate commands actually run. Neither can be
+# checked from inside this repo — a fixture written by hand only echoes back what
+# the registry already says. It needs the framework's own scaffolder and its own
+# toolchain.
+#
+# Doing that locally means installing PHP, a JDK, the .NET SDK, Ruby, Bun and
+# Swift on somebody's machine. GitHub's ubuntu runners already have most of them,
+# so this runs there instead and costs no disk anywhere.
+#
+# It is also scheduled, because `verified` rots. Angular's test gate was verified
+# once and then silently broke when Angular moved from Karma to Vitest; nothing
+# would have caught that except running it again.
+name: verify-stacks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 1 * *" # monthly — catches entries that rot
+  push:
+    paths:
+      - "scripts/stacks.json"
+      - "scripts/verify-stack.mjs"
+      - ".github/workflows/verify-stacks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    # One entry failing must not hide the others — the point of a run is the
+    # whole picture, not the first problem.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---- PHP (php + composer are preinstalled) ----
+          - id: codeigniter4
+            scaffold: composer create-project codeigniter4/appstarter fixture --no-interaction
+
+          - id: slim
+            scaffold: composer create-project slim/slim-skeleton fixture --no-interaction
+
+          # WordPress has no upstream project creator, so this builds the minimum
+          # a theme actually is: the style.css header the entry detects, plus the
+          # tools its gates name. If phpcs needs `installed_paths` to find the
+          # WordPress standard, this run is how we find out.
+          - id: wordpress
+            scaffold: |
+              mkdir -p fixture && cd fixture
+              printf '/*\nTheme Name: Fixture\nVersion: 0.1.0\n*/\n' > style.css
+              composer require --dev --no-interaction squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit
+
+          # ---- JVM ----
+          - id: quarkus
+            scaffold: mvn -B io.quarkus.platform:quarkus-maven-plugin:create -DprojectGroupId=org.acme -DprojectArtifactId=fixture
+
+          # Ktor's creator is a web service, so this is `gradle init` plus the
+          # Ktor dependency. Less faithful than the others — but the gates being
+          # verified here are Gradle's, and the marker is the real one.
+          - id: ktor
+            scaffold: |
+              mkdir -p fixture && cd fixture
+              gradle init --type kotlin-application --dsl kotlin --project-name fixture \
+                --package org.acme --test-framework junit-jupiter --no-daemon
+              printf '\ndependencies { implementation("io.ktor:ktor-server-core:3.0.0") }\n' >> app/build.gradle.kts
+
+          # ---- .NET ----
+          - id: blazor
+            scaffold: dotnet new blazor -o fixture
+
+          - id: avalonia
+            scaffold: |
+              dotnet new install Avalonia.Templates
+              dotnet new avalonia.app -o fixture
+
+          # MAUI needs a workload install and Android bits; treated as best-effort
+          # rather than dropped, so the run reports whether it is reachable at all.
+          - id: maui
+            scaffold: |
+              dotnet workload install maui-android --skip-sign-check
+              dotnet new maui -o fixture
+
+          # ---- Ruby ----
+          - id: sinatra
+            scaffold: |
+              mkdir -p fixture && cd fixture
+              bundle init
+              bundle add sinatra rackup rspec rubocop --skip-install
+              bundle install
+
+          # ---- Bun ----
+          - id: elysia
+            setupBun: true
+            scaffold: bun create elysia fixture
+
+          # ---- Swift ----
+          - id: swift
+            setupSwift: true
+            scaffold: mkdir -p fixture && cd fixture && swift package init --type executable
+
+          # Godot declares no gates (its build is an editor export), so only the
+          # detection marker is meaningful here.
+          - id: godot
+            detectOnly: true
+            scaffold: mkdir -p fixture && printf 'config_version=5\n' > fixture/project.godot
+
+          # Unity is deliberately absent: it needs a licence secret and a ~10GB
+          # editor. An entry that can never be verified should be reconsidered,
+          # not faked — see docs/VERIFYING.md.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.setupBun
+
+      - uses: swift-actions/setup-swift@v2
+        if: matrix.setupSwift
+
+      - name: Scaffold ${{ matrix.id }} with its own creator
+        id: scaffold
+        run: ${{ matrix.scaffold }}
+
+      - name: Verify detection and gates
+        id: verify
+        run: |
+          node scripts/verify-stack.mjs fixture ${{ matrix.id }} \
+            ${{ matrix.detectOnly && ' ' || '--run' }} | tee verify.log
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "### \`${{ matrix.id }}\` — ${{ steps.verify.outcome == 'success' && '✅ verified' || '❌ failed' }}"
+            echo
+            echo '```'
+            cat verify.log 2>/dev/null || echo "(scaffold failed before verification ran)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  summary:
+    name: result
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any entry did not verify
+        run: |
+          echo "verify job result: ${{ needs.verify.result }}"
+          test "${{ needs.verify.result }}" = "success"

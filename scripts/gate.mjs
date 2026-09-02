@@ -49,12 +49,34 @@ export function loadGates() {
   return { gates: mergeGates(found.primary, found.secondary), source: `detected:${found.primary.id}` };
 }
 
-function run(cmd) {
+function run(cmd, cwd) {
   process.stderr.write(`\n\x1b[36m$ ${cmd}\x1b[0m\n`);
-  const r = spawnSync(cmd, { shell: true, stdio: "inherit", cwd: at() });
+  const r = spawnSync(cmd, { shell: true, stdio: "inherit", cwd });
   if (r.error) return { ok: false, code: 1, reason: r.error.message };
   const code = r.status ?? 1;
   return { ok: code === 0, code, reason: NOT_FOUND.has(code) ? "command not found" : "" };
+}
+
+/**
+ * Run a gate set in order, stopping at the first failure.
+ *
+ * Exported because CI verifies a framework by scaffolding a real app elsewhere
+ * and running THAT project's gates — the same runner, the same semantics and the
+ * same "command not found" hint, rather than a second implementation that drifts
+ * away from this one.
+ */
+export function runGates(gates, { cwd = at(), only = [] } = {}) {
+  const keys = gateOrder(gates);
+  const selected = only.length ? keys.filter((k) => only.includes(k)) : keys;
+  const passed = [];
+  for (const key of selected) {
+    for (const cmd of asList(gates[key])) {
+      const r = run(cmd, cwd);
+      if (!r.ok) return { ok: false, passed, failed: key, code: r.code, reason: r.reason };
+    }
+    passed.push(key);
+  }
+  return { ok: true, passed, failed: null };
 }
 
 function main(argv) {
@@ -84,27 +106,21 @@ function main(argv) {
     return 1;
   }
 
-  const done = [];
-  for (const key of selected) {
-    for (const cmd of asList(gates[key])) {
-      const r = run(cmd);
-      if (!r.ok) {
-        process.stderr.write(
-          `\n\x1b[31m[gate] FAILED at \`${key}\` (exit ${r.code})${r.reason ? ` — ${r.reason}` : ""}\x1b[0m\n`,
-        );
-        if (r.reason === "command not found") {
-          process.stderr.write(
-            "       This command came from the framework registry and may be unverified.\n" +
-              "       Correct it in package.json → `vibe.gates`; see docs/STACK.md.\n",
-          );
-        }
-        if (done.length) process.stderr.write(`       Already passed: ${done.join(", ")}\n`);
-        return 1;
-      }
+  const r = runGates(gates, { only: selected });
+  if (!r.ok) {
+    process.stderr.write(
+      `\n\x1b[31m[gate] FAILED at \`${r.failed}\` (exit ${r.code})${r.reason ? ` — ${r.reason}` : ""}\x1b[0m\n`,
+    );
+    if (r.reason === "command not found") {
+      process.stderr.write(
+        "       This command came from the framework registry and may be unverified.\n" +
+          "       Correct it in package.json → `vibe.gates`; see docs/STACK.md.\n",
+      );
     }
-    done.push(key);
+    if (r.passed.length) process.stderr.write(`       Already passed: ${r.passed.join(", ")}\n`);
+    return 1;
   }
-  process.stderr.write(`\n\x1b[32m[gate] PASSED: ${done.join(" → ")}\x1b[0m\n`);
+  process.stderr.write(`\n\x1b[32m[gate] PASSED: ${r.passed.join(" → ")}\x1b[0m\n`);
   return 0;
 }
 

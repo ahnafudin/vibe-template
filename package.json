@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.3.4",
+  "version": "0.4.0",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -21,6 +21,7 @@
     "stack:apply": "node scripts/stacks.mjs apply",
     "stack:reapply": "node scripts/stacks.mjs apply --force",
     "stack:validate": "node scripts/stacks.mjs validate",
+    "stack:verify": "node scripts/verify-stack.mjs",
     "agents:sync": "node scripts/sync-agents.mjs",
     "agents:check": "node scripts/sync-agents.mjs --check",
     "version:get": "node scripts/version.mjs get",

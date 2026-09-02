@@ -6,7 +6,7 @@
 //   .gitignore   → managed block  (framework build artefacts)
 //   docs/STACK.md                 (the generated brief every agent reads)
 //
-//   node scripts/stacks.mjs detect        rank the stacks that match this repo
+//   node scripts/stacks.mjs detect [dir]  rank the stacks that match a repo
 //   node scripts/stacks.mjs list          every registry entry
 //   node scripts/stacks.mjs show <id>     one entry, with `extends` resolved
 //   node scripts/stacks.mjs doc           print docs/STACK.md to stdout
@@ -17,7 +17,7 @@
 // read the registry — versioning must keep working even if a stack entry is wrong.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 import { validate } from "./lib/jsonschema.mjs";
 import { at, isUnrenamedTemplate, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
@@ -438,7 +438,8 @@ function main(argv) {
       return;
     }
     case "detect": {
-      const { primary, secondary, ranked } = detectResolved(ROOT, stacks);
+      // Optional directory: CI scaffolds a real app elsewhere and asks about it.
+      const { primary, secondary, ranked } = detectResolved(arg ? resolvePath(arg) : ROOT, stacks);
       if (!primary) {
         process.stdout.write("no stack detected\n");
         return;
