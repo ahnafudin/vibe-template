@@ -229,6 +229,20 @@ describe("detection", () => {
     assert.equal(detectResolved(dir, stacks).primary.id, "ktor");
   });
 
+  it("prefers Blazor over the ASP.NET Core it is built on", () => {
+    // Their evidence is the same csproj, so no marker separates them reliably
+    // across template layouts — blazor carries an explicit weight instead.
+    const dir = repo({
+      "App.csproj": '<Project Sdk="Microsoft.NET.Sdk.Web"><PackageReference Include="Microsoft.AspNetCore.Components.Web" /></Project>',
+    });
+    assert.equal(detectResolved(dir, stacks).primary.id, "blazor");
+  });
+
+  it("still picks ASP.NET Core when there is no Blazor in it", () => {
+    const dir = repo({ "Api.csproj": '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>' });
+    assert.equal(detectResolved(dir, stacks).primary.id, "aspnetcore");
+  });
+
   it("falls back to the language when no framework matches", () => {
     const dir = repo({ "go.mod": "module example.com/plain\n" });
     assert.equal(detectResolved(dir, stacks).primary.id, "go");

@@ -473,7 +473,7 @@
         ]
       },
       "gates": {
-        "lint": "swiftlint",
+        "lint": null,
         "typecheck": null,
         "test": "swift test",
         "build": "swift build"
@@ -486,7 +486,8 @@
       ],
       "coreLayer": "Sources/<Core> - a target separate from the App target",
       "conventions": [
-        "Release version (MARKETING_VERSION) is set by hand in Xcode - see docs/VERSIONING.md"
+        "Release version (MARKETING_VERSION) is set by hand in Xcode - see docs/VERSIONING.md",
+        "SwiftLint is a separate install, not part of the toolchain — `swiftlint` exits 127 on a stock machine, so it is not a default gate here; add it to `vibe.gates` once you have installed it"
       ],
       "versionTargets": []
     },
@@ -674,7 +675,7 @@
       "tier": "framework",
       "label": ".NET MAUI (desktop/mobile)",
       "extends": "dotnet",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -706,7 +707,7 @@
       "tier": "framework",
       "label": "Avalonia UI (desktop)",
       "extends": "dotnet",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1195,7 +1196,8 @@
       ],
       "coreLayer": "pure service modules - routes are only bindings",
       "conventions": [
-        "A `t.Object` schema on every route keeps type-safety end to end"
+        "A `t.Object` schema on every route keeps type-safety end to end",
+        "`bun create elysia` currently emits a tsconfig with `moduleResolution: node10`, which current TypeScript rejects outright (TS5108) — fix it in the generated project, the typecheck gate is right"
       ],
       "versionTargets": [
         "package.json"
@@ -1515,7 +1517,8 @@
       "coreLayer": "app/Libraries + app/Models - controllers stay thin",
       "conventions": [
         "CI4 Models for data access; validation via Model or Request rules",
-        "Explicit routes in Config/Routes.php; do not rely on auto-routing"
+        "Explicit routes in Config/Routes.php; do not rely on auto-routing",
+        "appstarter's phpunit config asks for coverage, so `vendor/bin/phpunit` exits 1 with \"OK, but there were issues!\" when xdebug is absent — the tests passed. Install xdebug or run with --no-coverage in CI"
       ],
       "versionTargets": [
         "composer.json"
@@ -1526,7 +1529,7 @@
       "tier": "framework",
       "label": "Slim Framework",
       "extends": "php",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1590,7 +1593,8 @@
         "Prefix EVERY function, option and table with the plugin slug - the global namespace is shared",
         "Escape on output (`esc_html`/`esc_attr`), sanitise on input, nonce every form",
         "The plugin version lives in the PHP header; sync it at release (see docs/VERSIONING.md)",
-        "`phpcs --standard=WordPress` exits 3 until wpcs is REGISTERED, not merely installed: `phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs` (the composer plugin does it for you only when allow-plugins permits it to run)"
+        "`phpcs --standard=WordPress` exits 3 until wpcs is REGISTERED, not merely installed: `phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs` (the composer plugin does it for you only when allow-plugins permits it to run)",
+        "wpcs pulls sniffs from PHPCSUtils and PHPCSExtra; a mismatched set fails with \"Referenced sniff ... does not exist\" rather than anything about your code"
       ],
       "versionTargets": [
         "style.css"
@@ -2022,7 +2026,7 @@
       "tier": "framework",
       "label": "Ktor (Kotlin)",
       "extends": "gradle",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -2061,7 +2065,7 @@
       "tier": "framework",
       "label": "Quarkus",
       "extends": "maven",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -2146,11 +2150,13 @@
       ],
       "coreLayer": "injected services - `.razor` components are presentation only",
       "conventions": [
-        "Know your render mode (Server vs WASM) before touching anything secret"
+        "Know your render mode (Server vs WASM) before touching anything secret",
+        "Blazor and ASP.NET Core share the same csproj evidence, so this entry carries an explicit weight rather than a marker; ASP.NET Core remains a secondary stack and its gates still run"
       ],
       "versionTargets": [
         "*.csproj"
-      ]
+      ],
+      "weight": 1
     },
     {
       "id": "rails",
@@ -2294,7 +2300,7 @@
       "id": "godot",
       "tier": "framework",
       "label": "Godot",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {

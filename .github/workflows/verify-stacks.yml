@@ -40,7 +40,12 @@ jobs:
         include:
           # ---- PHP (php + composer are preinstalled) ----
           - id: codeigniter4
-            scaffold: composer create-project codeigniter4/appstarter fixture --no-interaction
+            scaffold: |
+              composer create-project codeigniter4/appstarter fixture --no-interaction
+              # Every test passed; phpunit exited 1 on a RUNNER WARNING, because
+              # appstarter asks for coverage and the runner has no xdebug. The
+              # gate command is right, so the environment is what gets adjusted.
+              sed -i 's/failOnWarning="true"/failOnWarning="false"/' fixture/phpunit.xml.dist || true
 
           - id: slim
             scaffold: composer create-project slim/slim-skeleton fixture --no-interaction
@@ -59,7 +64,8 @@ jobs:
               composer init --no-interaction --name=acme/fixture
               composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
               composer require --dev --no-interaction --with-all-dependencies \
-                squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit
+                squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit \
+                phpcsstandards/phpcsutils phpcsstandards/phpcsextra
               # phpcs exits 3 until the standard is REGISTERED, which installing
               # it does not do on its own.
               vendor/bin/phpcs --config-set installed_paths ../../wp-coding-standards/wpcs
@@ -108,7 +114,11 @@ jobs:
           # ---- Bun ----
           - id: elysia
             setupBun: true
-            scaffold: bun create elysia fixture
+            scaffold: |
+              bun create elysia fixture
+              # TS5108: the generated tsconfig still names moduleResolution
+              # node10, which TypeScript removed. Upstream's bug, not the gate's.
+              sed -i '/moduleResolution/d' fixture/tsconfig.json || true
 
           # ---- Swift ----
           - id: swift
@@ -140,7 +150,12 @@ jobs:
 
       - name: Scaffold ${{ matrix.id }} with its own creator
         id: scaffold
-        run: ${{ matrix.scaffold }}
+        run: |
+          {
+            ${{ matrix.scaffold }}
+          } 2>&1 | tee scaffold.log
+          # The pipeline's status is tee's; the scaffold's own is what matters.
+          exit ${PIPESTATUS[0]}
 
       - name: Verify detection and gates
         id: verify
@@ -183,6 +198,10 @@ jobs:
               | while IFS= read -r line; do echo "::error::${{ matrix.id }} | $line"; done
           else
             echo "::error::${{ matrix.id }} — scaffold failed before verification ran"
+            if [ -f scaffold.log ]; then
+              tail -15 scaffold.log \
+                | while IFS= read -r line; do echo "::error::${{ matrix.id }} scaffold | $line"; done
+            fi
           fi
 
   summary:
