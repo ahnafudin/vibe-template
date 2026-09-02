@@ -10,12 +10,20 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    # Several Node versions on purpose. A test that spawned `node --test <glob>`
+    # without a shell passed on 24 and failed on 20, because Node only learned to
+    # expand globs itself in v21 — a single-version job hid that for four commits.
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22", "24"]
+    name: gate (node ${{ matrix.node }})
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
 
       # The tooling manifest has no dependencies; --ignore-scripts skips the
       # postinstall git-hook install, which is a local-developer concern.
@@ -27,4 +35,19 @@ jobs:
       # dependency install your gates need. `npm run gate` then runs the rest.
 
       - name: Quality gates
-        run: npm run gate
+        run: |
+          set -o pipefail
+          npm run gate 2>&1 | tee gate.log
+
+      # A job's log needs a token to read; its annotations do not. Echoing the
+      # failing assertions as `::error::` makes a red run diagnosable straight
+      # from the public API — which is how this very failure was tracked down.
+      - name: Surface failures as annotations
+        if: failure()
+        run: |
+          # perl's \e rather than a literal escape byte: YAML rejects control
+          # characters, and one slipped into this file the first time round.
+          perl -pe 's/\e\[[0-9;]*m//g' gate.log \
+            | grep -E "not ok |AssertionError|FAILED at|Error:" \
+            | head -20 \
+            | while IFS= read -r line; do echo "::error::$line"; done

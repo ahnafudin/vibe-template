@@ -137,8 +137,11 @@ describe("a project made from this template", { skip: INSIDE && "running inside 
     // the template, so every generated project opened with a red gate.
     // TAP, not the default reporter: `# pass N` / `# fail N` are stable to
     // assert on, where the spec reporter's output is decorated and colourised.
+    // Explicit runner, not a glob: this spawn has no shell, and Node only
+    // learned to expand globs itself in v21 — the glob form passed locally and
+    // broke CI on Node 20.
     const r = node(
-      ["--test", "--test-reporter=tap", join(dir, "scripts", "tests", "*.test.mjs")],
+      [join(dir, "scripts", "tests", "run.mjs"), "--test-reporter=tap"],
       dir,
       { VIBE_DERIVED_TEST: "1" },
     );
