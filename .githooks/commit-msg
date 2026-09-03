@@ -1,0 +1,46 @@
+#!/bin/sh
+# vibe:hook — owned by scripts/install-hooks.mjs; edit .githooks/, never a copy.
+# Strip AI-agent attribution from commit messages, whichever agent wrote them.
+#
+# Claude Code can be told not to add it (settings.json -> attribution), and so
+# can some others. But every agent has its own switch, a new one arrives every
+# few months, and a single missed setting puts a bot in your GitHub contributor
+# list permanently. A commit-msg hook is the one place that catches all of them,
+# including agents nobody has configured yet.
+#
+# It removes:
+#   Co-authored-by:  lines naming a known agent (a HUMAN co-author is kept)
+#   Claude-Session:  and similar session-link trailers
+#   "Generated with ..." / "🤖 Generated with ..." lines
+#
+# Fail-soft by design: any problem leaves the message untouched rather than
+# losing what you wrote.
+
+MSG="$1"
+[ -n "$MSG" ] && [ -f "$MSG" ] || exit 0
+
+TMP="$MSG.vibe-attr"
+
+# A co-author is identified by its BOT ADDRESS, not by a product name. Matching
+# names is doubly wrong: case-insensitively, "Amp" matches inside "example.com"
+# and deleted a human's trailer during testing — and "Claude" is a real person's
+# name, so a human collaborator called Claude must not be erased either.
+#
+# The other two lines are unambiguous and stay name-based, but anchored, so a
+# commit body that merely DISCUSSES attribution (this repo does, at length) is
+# not silently rewritten.
+BOTS='noreply@anthropic\.com|@cursor\.com|Cursor Agent|Copilot@users\.noreply\.github\.com|devin-ai-integration|google-labs-jules|@openai\.com|windsurf-agent|sourcegraph\.com'
+PATTERN="^[[:space:]]*(Co-authored-by:[[:space:]]*.*($BOTS)|(Claude|Cursor|Codex|Copilot)-(Code-)?Session:|(🤖[[:space:]]*)?Generated with[[:space:]]*\[?(Claude Code|Cursor|Copilot|Codex|opencode))"
+
+grep -viE "$PATTERN" "$MSG" > "$TMP" 2>/dev/null || true
+
+# Never write an empty message: if the filter would blank it, keep the original.
+if [ ! -s "$TMP" ]; then
+  rm -f "$TMP"
+  exit 0
+fi
+
+# Command substitution drops the trailing newlines the removed trailers left.
+printf '%s\n' "$(cat "$TMP")" > "$MSG"
+rm -f "$TMP"
+exit 0

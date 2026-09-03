@@ -47,6 +47,10 @@ Treat the rules below as if they were prepended to every request:
   `docs/TASKS.md` stays the roadmap checklist.
 - **Avoid AI-slop design:** follow the project's design tokens and original assets; no generic
   template look. <!-- TODO:fill — point at the design-token file -->
+- **No agent attribution in commits.** Do not add `Co-Authored-By` for yourself, a
+  "Generated with …" line, or a session link. `.githooks/commit-msg` strips them anyway,
+  whichever tool you are — but do not write them in the first place. Human co-authors are
+  fine and are kept.
 - **On completion:** tick the item in `docs/TASKS.md`, update docs when an architecture decision
   changed (full build history goes to `docs/archive/STATUS_ARCHIVE.md` — keep this file's
   "Current state" to one bullet per domain), and report: what was done, which files changed,

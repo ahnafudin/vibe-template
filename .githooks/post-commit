@@ -1,4 +1,5 @@
 #!/bin/sh
+# vibe:hook — owned by scripts/install-hooks.mjs; edit .githooks/, never a copy.
 # Auto-version hook (post-commit). Reads the conventional-commit type of the
 # commit that JUST landed, bumps the app semver, and folds the bump INTO that
 # commit via `git commit --amend`. post-commit is the only hook that can do

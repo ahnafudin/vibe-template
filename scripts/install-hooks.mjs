@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-// scripts/install-hooks.mjs — point git at the committed `.githooks/` folder so
-// the auto-version hook (post-commit) runs on every commit. Idempotent and
-// fail-soft: a non-git checkout / a machine without git simply skips. Run by
-// `postinstall` and exposed as `npm run hooks:install`.
+// scripts/install-hooks.mjs — make sure every hook this template ships is the
+// one git actually runs. Idempotent and fail-soft: a non-git checkout, or a
+// machine without git, simply skips. Run by `postinstall` and exposed as
+// `npm run hooks:install`.
+//
+// Hooks shipped in .githooks/:
+//   post-commit  folds a conventional-commit version bump into that commit
+//   commit-msg   strips AI-agent attribution trailers, whichever agent wrote them
 //
 // Safety guards (each closes a real, reproduced failure):
 //   - dubious ownership: git refuses EVERY command with exit 128 when the repo
@@ -13,17 +17,20 @@
 //     copy into a monorepo without its own .git), a naive install would write
 //     core.hooksPath into the PARENT repo and silently disable all of its hooks.
 //   - foreign hooksPath: never clobber an existing hook manager (husky, lefthook…).
-//   - beads: `bd init` moves core.hooksPath to `.beads/hooks` and chains this
-//     hook by COPYING it. Expected — but the copy is what git then runs, so it
-//     goes stale the moment .githooks/post-commit is edited. Refresh it, and
-//     warn if the chain lost our hook entirely.
+//   - beads: `bd init` moves core.hooksPath to `.beads/hooks` and chains the
+//     hooks that existed at the time by COPYING them. That copy is what git then
+//     runs, so it goes stale the moment .githooks/ is edited — and a hook added
+//     LATER never arrives there at all. Both are handled below.
+//   - never overwrite a hook there that is not ours: bd writes its own
+//     pre-commit, post-merge, pre-push and prepare-commit-msg.
 
-import { chmodSync, existsSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { at, git, norm, note as write, ROOT, safeDirectoryHint, writeIfChanged } from "./lib/util.mjs";
 
 const HOOK_DIR = at(".githooks");
-const HOOK = "post-commit";
+/** Present in every hook this template owns, so a foreign one is never clobbered. */
+const MARKER = "vibe:hook";
 
 const note = (msg) => write(msg, "[hooks] ");
 
@@ -46,49 +53,64 @@ if (norm(toplevel.out) !== norm(ROOT)) {
   process.exit(0);
 }
 
-if (!existsSync(join(HOOK_DIR, HOOK))) {
-  note(`.githooks/${HOOK} missing — skipping`);
+if (!existsSync(HOOK_DIR)) {
+  note(".githooks/ missing — nothing to install");
+  process.exit(0);
+}
+
+const ours = readdirSync(HOOK_DIR).filter((f) => !f.startsWith("."));
+if (ours.length === 0) {
+  note(".githooks/ is empty — nothing to install");
   process.exit(0);
 }
 
 const current = git(["config", "--get", "core.hooksPath"]);
 const hooksPath = current.ok ? current.out : "";
 
-if (hooksPath === ".githooks") {
-  note("already installed (core.hooksPath=.githooks)");
-} else if (hooksPath.endsWith(".beads/hooks") || hooksPath.endsWith(".beads\\hooks")) {
-  // beads owns the chain. `bd init` chains a pre-existing hook by COPYING it,
-  // not by delegating — so the copy silently goes stale the next time
-  // .githooks/post-commit is edited, and git runs the old one. Detect that and
-  // refresh, keeping .githooks/ the single source of truth.
-  const chained = at(".beads", "hooks", HOOK);
-  const chainedBody = existsSync(chained) ? readFileSync(chained, "utf8") : "";
-  const ours = readFileSync(join(HOOK_DIR, HOOK), "utf8");
-  if (chainedBody.includes(`.githooks/${HOOK}`)) {
-    note(`beads owns the hook chain (${hooksPath}) — it delegates to .githooks/, nothing to do`);
-  } else if (chainedBody.includes("version.mjs")) {
-    if (writeIfChanged(chained, ours)) {
-      note(`beads owns the hook chain (${hooksPath}); its COPY of the auto-version hook was`);
-      note(`stale — refreshed from .githooks/${HOOK}.`);
-    } else {
-      note(`beads owns the hook chain (${hooksPath}) — chained version hook is current`);
+/** Copy our hooks into the directory git actually reads, when that is not ours. */
+function syncInto(dir, label) {
+  const added = [];
+  const refreshed = [];
+  const foreign = [];
+  for (const name of ours) {
+    const source = readFileSync(join(HOOK_DIR, name), "utf8");
+    const target = join(dir, name);
+    const existing = existsSync(target) ? readFileSync(target, "utf8") : null;
+    // `version.mjs` recognises the copy bd made of our post-commit BEFORE the
+    // marker existed, so an already-set-up repo migrates instead of stalling.
+    const isOurs = existing === null || existing.includes(MARKER) || existing.includes("version.mjs");
+    if (!isOurs) {
+      foreign.push(name); // somebody else's hook of the same name — leave it alone
+      continue;
     }
-  } else {
-    note(`WARNING: beads owns the hook chain (${hooksPath}) but the auto-version ${HOOK} hook`);
-    note(`is NOT chained there. Re-run \`bd init\` on a clean tree, or copy .githooks/${HOOK}`);
-    note("into .beads/hooks/ (bd chains pre-existing hooks only when they exist at init time).");
+    if (writeIfChanged(target, source)) (existing === null ? added : refreshed).push(name);
   }
+  if (added.length) note(`${label}: installed ${added.join(", ")}`);
+  if (refreshed.length) note(`${label}: refreshed a stale copy of ${refreshed.join(", ")}`);
+  if (foreign.length) {
+    note(`WARNING: ${label} already has a different ${foreign.join(", ")} — left untouched.`);
+    note(`Merge .githooks/${foreign[0]} into it by hand if you want both to run.`);
+  }
+  if (!added.length && !refreshed.length && !foreign.length) note(`${label}: all hooks current`);
+}
+
+if (hooksPath === ".githooks") {
+  note(`already installed (core.hooksPath=.githooks; ${ours.join(", ")})`);
+} else if (hooksPath.endsWith(".beads/hooks") || hooksPath.endsWith(".beads\\hooks")) {
+  syncInto(at(".beads", "hooks"), `beads owns the chain (${hooksPath})`);
 } else if (hooksPath) {
   note(`core.hooksPath is already "${hooksPath}" (another hook manager?) — not overwriting.`);
-  note("to enable the auto-version hook manually: git config core.hooksPath .githooks");
+  note("to enable this template's hooks manually: git config core.hooksPath .githooks");
 } else {
   const set = git(["config", "core.hooksPath", ".githooks"]);
-  note(set.ok ? "installed: core.hooksPath → .githooks" : `install skipped: ${set.out}`);
+  note(set.ok ? `installed: core.hooksPath → .githooks (${ours.join(", ")})` : `install skipped: ${set.out}`);
 }
 
 // Best-effort exec bit (required on POSIX; a no-op on Windows).
-try {
-  chmodSync(join(HOOK_DIR, HOOK), 0o755);
-} catch {
-  /* ignore — Windows / restricted FS */
+for (const name of ours) {
+  try {
+    chmodSync(join(HOOK_DIR, name), 0o755);
+  } catch {
+    /* ignore — Windows / restricted FS */
+  }
 }

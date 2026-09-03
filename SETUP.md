@@ -80,6 +80,29 @@ the template repo itself, run `bd init` by hand and keep `.beads/` out of git lo
 (`echo '.beads/' >> .git/info/exclude` — `.git/info/exclude` is not committed, so a real project
 still commits its own `.beads/config.yaml` for the second-machine flow).
 
+## Keeping AI agents out of your contributor list
+
+Two layers, because one is never enough:
+
+- **Per tool.** `.claude/settings.json` here (and `~/.claude/settings.json` for every project)
+  sets `attribution: { commit: "", pr: "", sessionUrl: false }` plus the older
+  `includeCoAuthoredBy: false`, so Claude Code adds no `Co-Authored-By`, no
+  "Generated with Claude Code" line and no session link. Other tools each have their own
+  switch — Cursor, Copilot and the rest are NOT covered by this file.
+- **For every tool at once.** `.githooks/commit-msg` strips agent attribution from the message
+  whatever wrote it, including agents nobody has configured yet. It identifies bots by their
+  address (`noreply@anthropic.com`, `@cursor.com`, …) rather than by product name — matching
+  names deletes a human collaborator called Claude, and case-insensitively "Amp" matches inside
+  "example.com".
+
+A **human** co-author is always kept, and a commit body that merely discusses attribution is
+left alone. Both are covered by `scripts/tests/commit-msg.test.mjs`.
+
+⚠️ Neither layer touches commits you have already pushed. Their messages are part of history,
+so removing attribution there means `git filter-repo` (or an interactive rebase) followed by a
+force-push — which rewrites every SHA from that point on. Worth it on a solo repo; coordinate
+first on a shared one.
+
 ## If git says "dubious ownership"
 
 Every git command fails with exit 128 and setup stops. This is **not** a missing repository — do
