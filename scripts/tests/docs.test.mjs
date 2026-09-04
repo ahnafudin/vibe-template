@@ -134,8 +134,9 @@ describe("the README's honesty claim", () => {
       readme.includes(`**On honesty:** ${verified} entries are verified`),
       `README states a different verified count; the registry has ${verified}`,
     );
+    const verb = unverified === 1 ? "is" : "are";
     assert.ok(
-      readme.includes(`**${unverified} are marked \`"verified": false\`**`),
+      readme.includes(`**${unverified} ${verb} marked \`"verified": false\`**`),
       `README states a different unverified count; the registry has ${unverified}`,
     );
   });

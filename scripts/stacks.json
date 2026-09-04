@@ -1492,7 +1492,7 @@
       "tier": "framework",
       "label": "CodeIgniter 4",
       "extends": "php",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1580,7 +1580,7 @@
         ]
       },
       "gates": {
-        "lint": "vendor/bin/phpcs --standard=WordPress",
+        "lint": "vendor/bin/phpcs --standard=WordPress --ignore=vendor/,node_modules/ .",
         "test": "vendor/bin/phpunit",
         "typecheck": null
       },
@@ -1596,7 +1596,8 @@
         "Escape on output (`esc_html`/`esc_attr`), sanitise on input, nonce every form",
         "The plugin version lives in the PHP header; sync it at release (see docs/VERSIONING.md)",
         "`phpcs --standard=WordPress` exits 3 until wpcs is REGISTERED, not merely installed: `phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs` (the composer plugin does it for you only when allow-plugins permits it to run)",
-        "wpcs pulls sniffs from PHPCSUtils and PHPCSExtra; a mismatched set fails with \"Referenced sniff ... does not exist\" rather than anything about your code"
+        "wpcs pulls sniffs from PHPCSUtils and PHPCSExtra; a mismatched set fails with \"Referenced sniff ... does not exist\" rather than anything about your code",
+        "`phpcs --standard=WordPress` alone exits 3 with \"You must supply at least one file or directory\" — it needs a target. The gate passes `.` with vendor/ and node_modules/ ignored; if your project has its own phpcs.xml naming the files, simplify the gate to bare `vendor/bin/phpcs`"
       ],
       "versionTargets": [
         "style.css"
@@ -2202,7 +2203,7 @@
       "tier": "framework",
       "label": "Sinatra",
       "extends": "ruby",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {

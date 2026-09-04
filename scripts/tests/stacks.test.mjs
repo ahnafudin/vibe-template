@@ -286,7 +286,10 @@ describe("generated docs/STACK.md", () => {
   });
 
   it("warns loudly when a stack's commands are unverified", () => {
-    const primary = resolve(stacks, "codeigniter4");
+    // Synthetic rather than "whichever entry happens to be unverified today":
+    // this broke the moment codeigniter4 earned its `verified: true`, and the
+    // subject here is renderDoc's banner, not the registry's current state.
+    const primary = { ...resolve(stacks, "laravel"), verified: false };
     const doc = renderDoc({ primary, secondary: [] }, mergeGates(primary, []));
     assert.match(doc, /Unverified commands/i);
     assert.doesNotMatch(
