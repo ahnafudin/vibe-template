@@ -21,6 +21,10 @@
       {
         "hooks": [
           {
+            "type": "command",
+            "command": "node scripts/install-hooks.mjs"
+          },
+          {
             "command": "node scripts/bd-prime.mjs",
             "type": "command"
           }

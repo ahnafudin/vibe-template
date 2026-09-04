@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.6.5",
+  "version": "0.7.0",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -28,7 +28,8 @@
     "version:sync": "node scripts/version.mjs sync",
     "version:patch": "node scripts/version.mjs patch",
     "version:minor": "node scripts/version.mjs minor",
-    "version:major": "node scripts/version.mjs major"
+    "version:major": "node scripts/version.mjs major",
+    "attribution:check": "node scripts/check-attribution.mjs"
   },
   "vibe": {
     "stack": "node",

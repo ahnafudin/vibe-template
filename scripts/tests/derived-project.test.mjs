@@ -132,6 +132,30 @@ describe("a project made from this template", { skip: INSIDE && "running inside 
     }
   });
 
+  it("inherits the whole attribution defence, not just part of it", () => {
+    // The reason this is asserted rather than assumed: a bot in the contributor
+    // list can only be removed by rewriting published history, so a project that
+    // inherits the template must arrive already protected — not protected once
+    // somebody remembers to run a command.
+    for (const f of [
+      ".githooks/commit-msg", // strips it, once hooks are installed
+      ".github/workflows/attribution.yml", // catches it when they are not
+      "scripts/check-attribution.mjs",
+      ".claude/settings.json",
+    ]) {
+      assert.ok(existsSync(join(dir, f)), `a derived project is missing ${f}`);
+    }
+    const settings = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
+    assert.equal(settings.includeCoAuthoredBy, false, "Claude Code would still add its own trailer");
+    // The hook has to be ARMED before the first commit, and `npm install` may
+    // never happen in a non-JS project — so a session start arms it too.
+    const onStart = settings.hooks.SessionStart.flatMap((g) => g.hooks).map((h) => h.command);
+    assert.ok(
+      onStart.some((c) => c.includes("install-hooks")),
+      "nothing installs the git hooks at session start; the first commits would be unprotected",
+    );
+  });
+
   it("passes the whole tooling suite — the check that would have caught all six", () => {
     // Two of these tests once failed by construction in any repo that is not
     // the template, so every generated project opened with a red gate.

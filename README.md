@@ -30,7 +30,7 @@ loads the same contract instead of nothing.
 | **Archive contract** | `docs/archive/STATUS_ARCHIVE.md` + `TASKS_ARCHIVE.md`: when work merges, its full story moves here and `AGENTS.md` keeps ≤ 1 bullet per domain — the always-loaded context never bloats. |
 | **Beads issue tracker** | Optional `bd` wiring with rules reconciled for this workflow: bd = cross-session issues, `docs/TASKS.md` = roadmap checklist, no auto-push. Silent when bd is not installed, and refuses to initialise until you rename the project — bd commits an identity, which must not ship from a template. |
 | **Auto-versioning** | A conventional-commit hook bumps semver in `package.json` and syncs **every other manifest that exists** — inside the same commit. |
-| **No agent attribution** | `.claude/settings.json` stops Claude Code adding `Co-Authored-By`, a "Generated with" line or a session link; `.githooks/commit-msg` strips them whatever tool wrote them — Cursor, Copilot, or one that does not exist yet. Human co-authors are kept, including anyone named Claude. |
+| **No agent attribution** | Three layers, because one bad commit is permanent — it puts a bot in your GitHub contributor list, removable only by rewriting published history. `.claude/settings.json` stops Claude Code adding `Co-Authored-By`, a "Generated with" line or a session link, and arms the hooks at session start; `.githooks/commit-msg` strips them whatever tool wrote them — Cursor, Copilot, or one that does not exist yet; and `.github/workflows/attribution.yml` fails the build if any commit carries them anyway, which is the layer that covers a fresh clone where no hook is installed yet. Human co-authors are kept, including anyone named Claude. |
 | `scripts/setup.mjs` | One-shot, idempotent, ordered bootstrap (order matters — see below). |
 
 ## Framework support
@@ -201,6 +201,7 @@ scripts/
   sync-agents.mjs      AGENTS.md → per-tool pointer files
   personalize.mjs      de-template a fresh copy (version → 0.1.0, project README)
   verify-stack.mjs     detect + run the gates of a scaffolded project
+  check-attribution.mjs  the commit-msg rule, applied to history in CI
   setup.mjs  install-hooks.mjs  bd-prime.mjs
   lib/                 shared utils (git, globs, managed blocks, JSON-Schema subset)
   tests/               `node --test` via run.mjs, zero dependencies
@@ -209,6 +210,7 @@ scripts/
   post-commit          conventional-commit auto-version
   commit-msg           strips AI-agent attribution, whichever tool wrote it
 .github/workflows/
+  attribution.yml      fails the build if any commit carries AI-agent attribution
   gate.yml             the same `npm run gate`, on Node 20/22/24
   verify-stacks.yml    scaffolds real projects and verifies registry entries
 ```

@@ -1,0 +1,44 @@
+# Fail the build when a commit carries AI-agent attribution.
+#
+# The commit-msg hook already strips this locally. This is the net under it,
+# because a hook only protects commits made AFTER it was installed, in a clone
+# where it IS installed — and git deliberately forbids committing
+# `core.hooksPath`, so a fresh clone has none until `npm install` (or
+# `npm run setup`) has run. `npm install --ignore-scripts` skips that, and a
+# non-JS project may never run npm at all.
+#
+# Each of those is a window in which an agent can commit its own name into the
+# history, and the cost is out of proportion to the window: a bot lands in the
+# repository's GitHub contributor list, and the only way back out is rewriting
+# published history and force-pushing.
+#
+# CI has none of those preconditions. It sees the first push, which is exactly
+# when a rewrite is still cheap — nobody else has cloned yet.
+name: attribution
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: no AI attribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history: a bad commit anywhere is a contributor entry,
+          # not just a bad commit in this push.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # No `npm install`: this check must work in a checkout where nothing has
+      # been set up, since that is the situation it exists to cover.
+      - name: Scan every commit message
+        run: node scripts/check-attribution.mjs
