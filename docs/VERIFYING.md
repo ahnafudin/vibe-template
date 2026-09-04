@@ -58,7 +58,13 @@ ties break alphabetically. See the `detect` notes in `scripts/stacks.schema.json
 
 ## Entries that cannot be verified here
 
-`unity` needs a licence secret and a ~10GB editor; `godot`'s build is an editor
-export, so only its detection marker is checked. An entry nobody can verify is
-worth reconsidering rather than faking — it is support the README advertises and
-cannot stand behind.
+`unity` needs a licence and a ~10GB editor, and `godot`'s build is an editor
+export, so neither is built here. But **neither entry declares any gates**, so
+detection is the only thing that can be wrong about them — and that is checkable
+without either editor. Both run in the matrix as `detectOnly`, which is an honest
+`verified: true`: it says the markers are right, and there is nothing else the
+entry claims.
+
+The distinction matters. "Cannot be verified" would have left two permanent
+unknowns in a registry whose whole value is that its claims are checked. What was
+actually unverifiable was a build path neither entry promises.

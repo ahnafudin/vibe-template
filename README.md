@@ -54,9 +54,12 @@ loads the same contract instead of nothing.
 Frameworks inherit their language base through `extends`, so Laravel gets PHP's rules plus its own,
 and Tauri composes Rust **and** Node.
 
-**On honesty:** 49 entries are verified; **21 are marked `"verified": false`** and their generated
-`docs/STACK.md` carries a visible "verify these commands before trusting them" banner. A wrong
-command an agent believes is worse than one it is told to check.
+**On honesty:** 64 entries are verified — most of them against a project the framework's own
+creator produced, on GitHub's runners (`.github/workflows/verify-stacks.yml`). The remaining
+**6 are marked `"verified": false`**, and their generated `docs/STACK.md` carries a visible
+"verify these commands before trusting them" banner. A wrong command an agent believes is worse
+than one it is told to check. Those counts are asserted by the test suite, so this paragraph
+cannot quietly go stale.
 
 **Adding your framework** — one entry in `scripts/stacks.json`, then `npm run stack:validate`:
 
@@ -204,9 +207,9 @@ scripts/
 ## Contributing to the template itself
 
 `npm run gate` is the whole contract: it validates the registry against its schema, checks the
-generated pointer files are in sync, and runs **105 tests** (`node --test`, zero dependencies)
-covering every version-manifest planner, every detection rule, and the documented commands
-themselves.
+generated pointer files are in sync, and runs the full suite (`node --test`, zero dependencies)
+covering every version-manifest planner, every detection rule, the commit-msg hook, the
+documented commands themselves, and a simulated project built from this template.
 
 The invariants those tests protect, which are easy to break by accident:
 

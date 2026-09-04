@@ -143,9 +143,16 @@ jobs:
             detectOnly: true
             scaffold: mkdir -p fixture && printf 'config_version=5\n' > fixture/project.godot
 
-          # Unity is deliberately absent: it needs a licence secret and a ~10GB
-          # editor. An entry that can never be verified should be reconsidered,
-          # not faked — see docs/VERIFYING.md.
+          # Unity's BUILD needs the editor and a licence, so it is not built here.
+          # But the entry declares no gates at all, so detection is the only thing
+          # that can be wrong — and Assets/ + ProjectSettings/ is what a Unity
+          # project is. That much is checkable without Unity, so it is checked
+          # rather than left as a permanent unknown.
+          - id: unity
+            detectOnly: true
+            scaffold: |
+              mkdir -p fixture/Assets fixture/ProjectSettings
+              echo "m_EditorVersion: 2022.3.0f1" > fixture/ProjectSettings/ProjectVersion.txt
 
     steps:
       - uses: actions/checkout@v4

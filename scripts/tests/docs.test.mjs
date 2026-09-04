@@ -10,7 +10,8 @@ import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { at, readIfExists, readJson } from "../lib/util.mjs";
+import { at, isUnrenamedTemplate, readIfExists, readJson } from "../lib/util.mjs";
+import { loadRegistry } from "../stacks.mjs";
 import { renderStub, TARGETS } from "../sync-agents.mjs";
 
 const pkg = readJson(at("package.json"));
@@ -111,5 +112,36 @@ describe("documented commands exist", () => {
         assert.ok(cmd.trim().length > 0, `vibe.gates.${key} has an empty command`);
       }
     }
+  });
+});
+
+describe("the README's honesty claim", () => {
+  // It states how many entries are verified. That number is the whole basis for
+  // trusting the registry, and it drifted from 49/21 to 64/6 in one session
+  // without anyone noticing — so it is asserted rather than maintained by hand.
+  it("matches what stacks.json actually says", (t) => {
+    // Only meaningful here: `personalize.mjs` replaces this README with the
+    // project's own, so a derived copy has no such claim to check.
+    if (!isUnrenamedTemplate()) return t.skip("not the template — its README was replaced");
+    const stacks = loadRegistry();
+    const verified = stacks.filter((s) => s.verified !== false).length;
+    const unverified = stacks.length - verified;
+    const readme = readIfExists(at("README.md"));
+    // Plain substring, not a regex: the markdown emphasis around these numbers
+    // is full of asterisks, and escaping them through a template literal is how
+    // this assertion silently passed on nothing the first time.
+    assert.ok(
+      readme.includes(`**On honesty:** ${verified} entries are verified`),
+      `README states a different verified count; the registry has ${verified}`,
+    );
+    assert.ok(
+      readme.includes(`**${unverified} are marked \`"verified": false\`**`),
+      `README states a different unverified count; the registry has ${unverified}`,
+    );
+  });
+
+  it("does not pin an exact test count, which changes every commit", (t) => {
+    if (!isUnrenamedTemplate()) return t.skip("not the template — its README was replaced");
+    assert.doesNotMatch(readIfExists(at("README.md")), /runs \*\*\d+ tests\*\*/);
   });
 });
