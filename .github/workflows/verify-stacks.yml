@@ -54,7 +54,14 @@ jobs:
           # a theme actually is: the style.css header the entry detects, plus the
           # tools its gates name. If phpcs needs `installed_paths` to find the
           # WordPress standard, this run is how we find out.
+          # Only the lint gate runs here, and that is the whole of what this
+          # entry claims. Its `test` gate is `vendor/bin/phpunit`, inherited
+          # unchanged from the php base and already verified by codeigniter4 and
+          # slim — while a REAL WordPress suite needs the WP test harness and a
+          # MySQL database. Running bare phpunit against a bare theme would only
+          # prove that phpunit prints its own help, which is what it did.
           - id: wordpress
+            only: lint
             scaffold: |
               mkdir -p fixture && cd fixture
               printf '/*\nTheme Name: Fixture\nVersion: 0.1.0\n*/\n' > style.css
@@ -197,7 +204,8 @@ jobs:
           # pipefail, so a pipeline reports tee's exit code and a failed
           # verification would be reported as a pass. Redirect, then decide.
           if node scripts/verify-stack.mjs fixture ${{ matrix.id }} \
-            ${{ matrix.detectOnly && ' ' || '--run' }} > verify.log 2>&1; then
+            ${{ matrix.detectOnly && ' ' || '--run' }} \
+            ${{ matrix.only && format('--only={0}', matrix.only) || '' }} > verify.log 2>&1; then
             cat verify.log
           else
             cat verify.log

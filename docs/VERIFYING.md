@@ -73,15 +73,56 @@ all exit non-zero with no tests; `cargo test`, `go test` and `node ace test` pas
 vacuously. Each is recorded as a convention on its language base, so nobody has
 to rediscover it per project.
 
-## Entries that cannot be verified here
+## Verify what the entry actually claims
 
-`unity` needs a licence and a ~10GB editor, and `godot`'s build is an editor
-export, so neither is built here. But **neither entry declares any gates**, so
-detection is the only thing that can be wrong about them — and that is checkable
-without either editor. Both run in the matrix as `detectOnly`, which is an honest
-`verified: true`: it says the markers are right, and there is nothing else the
-entry claims.
+Three entries cannot have every gate run on a CI runner, and each is scoped to
+the part that is genuinely its own — not waved through, and not left unknown.
 
-The distinction matters. "Cannot be verified" would have left two permanent
+| Entry | Scoped to | Why the rest is not run here |
+|---|---|---|
+| `unity` | detection | needs a licence and a ~10GB editor |
+| `godot` | detection | its build is an editor export |
+| `wordpress` | `lint` | a real WP suite needs the WP test harness and a database |
+
+`unity` and `godot` **declare no gates at all**, so detection is the only thing
+that can be wrong about them, and that is checkable without either editor. They
+run as `detectOnly`, which is an honest `verified: true`: the markers are right,
+and the entry claims nothing else.
+
+`wordpress` is the sharper case. It declares a `test` gate — but that gate is
+`vendor/bin/phpunit`, inherited unchanged from the `php` base and already
+verified by `codeigniter4` and `slim`. What is specific to WordPress is its
+detection marker and its `phpcs --standard=WordPress` lint gate, and both of
+those run. Pointing bare phpunit at a bare theme would only have proved that
+phpunit prints its own help — which is exactly what it did, and is not a fact
+about the registry. The matrix scopes that job with `only: lint`.
+
+The distinction matters. "Cannot be verified" would have left three permanent
 unknowns in a registry whose whole value is that its claims are checked. What was
-actually unverifiable was a build path neither entry promises.
+actually unverifiable was a build path, an editor export, and a database — none
+of which these entries promise.
+
+## The verifier itself
+
+`verify-stack.mjs` is what CI trusts when it marks an entry verified, so a bug in
+it is worse than a bug in an entry: it is a wrong answer that looks like a right
+one. Two were found by running it against its own edge cases rather than against
+a framework.
+
+**`--only=<typo>` reported a pass having run nothing.** The runner filtered the
+gate list down to the names given; a name matching none left an empty selection,
+the loop never ran, and it returned green with `PASSED :` and an empty list. The
+guard now lives in `runGates`, the shared runner — not in `gate.mjs`'s argument
+parsing, which is where it was, and which is precisely why the other caller
+skipped it.
+
+**`--only lint` ran every gate.** The space-separated form is the one this
+script's own usage line documents, and it was parsed as `"--only".split("=")[1]`
+— undefined. So the flag selected nothing (meaning: run everything) and `lint`
+fell through into the positional arguments. Both forms now work, and a mistyped
+flag is refused rather than ignored.
+
+The shape is the same in both, and it is the shape worth remembering: **a check
+that silently does less than it was asked to is indistinguishable from one that
+passed.** Anything that narrows what gets verified has to fail loudly when the
+narrowing makes no sense.
