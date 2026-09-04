@@ -1,7 +1,7 @@
 {
   "name": "my-project",
   "private": true,
-  "version": "0.6.4",
+  "version": "0.6.5",
   "type": "module",
   "description": "TODO:fill — one-line project description",
   "engines": {
@@ -36,7 +36,8 @@
     "gates": {
       "lint": [
         "node scripts/sync-agents.mjs --check",
-        "node scripts/stacks.mjs validate"
+        "node scripts/stacks.mjs validate",
+        "node scripts/install-hooks.mjs --check"
       ],
       "typecheck": null,
       "test": "npm run test:template",

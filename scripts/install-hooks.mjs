@@ -26,13 +26,28 @@
 
 import { chmodSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { at, git, norm, note as write, ROOT, safeDirectoryHint, writeIfChanged } from "./lib/util.mjs";
+import { at, git, norm, note as write, parseFlags, ROOT, safeDirectoryHint, writeIfChanged } from "./lib/util.mjs";
 
 const HOOK_DIR = at(".githooks");
 /** Present in every hook this template owns, so a foreign one is never clobbered. */
 const MARKER = "vibe:hook";
 
 const note = (msg) => write(msg, "[hooks] ");
+
+// `--check` verifies without writing: it is the lint gate's job to notice that
+// the copy git ACTUALLY runs has fallen behind .githooks/. That is not
+// hypothetical — the commit-msg hook was fixed here to stop matching agents by
+// product name (which deleted a human co-author whose address contained "amp"),
+// while the copy beads owns went on running the old one for days. The fix
+// existed, was committed, was tested, and was not the file being executed.
+const { flags, problems } = parseFlags(process.argv.slice(2), { known: ["--check"] });
+if (problems.length) {
+  note(problems.join("; "));
+  note("usage: install-hooks.mjs [--check]");
+  process.exit(2);
+}
+const CHECK = flags.has("--check");
+let outOfDate = 0;
 
 const toplevel = git(["rev-parse", "--show-toplevel"]);
 if (!toplevel.ok) {
@@ -83,10 +98,15 @@ function syncInto(dir, label) {
       foreign.push(name); // somebody else's hook of the same name — leave it alone
       continue;
     }
-    if (writeIfChanged(target, source)) (existing === null ? added : refreshed).push(name);
+    if (existing === source) continue;
+    (existing === null ? added : refreshed).push(name);
+    if (CHECK) outOfDate++;
+    else writeIfChanged(target, source);
   }
-  if (added.length) note(`${label}: installed ${added.join(", ")}`);
-  if (refreshed.length) note(`${label}: refreshed a stale copy of ${refreshed.join(", ")}`);
+  if (added.length) note(`${label}: ${CHECK ? "MISSING" : "installed"} ${added.join(", ")}`);
+  if (refreshed.length) {
+    note(`${label}: ${CHECK ? "STALE copy of" : "refreshed a stale copy of"} ${refreshed.join(", ")}`);
+  }
   if (foreign.length) {
     note(`WARNING: ${label} already has a different ${foreign.join(", ")} — left untouched.`);
     note(`Merge .githooks/${foreign[0]} into it by hand if you want both to run.`);
@@ -102,8 +122,15 @@ if (hooksPath === ".githooks") {
   note(`core.hooksPath is already "${hooksPath}" (another hook manager?) — not overwriting.`);
   note("to enable this template's hooks manually: git config core.hooksPath .githooks");
 } else {
-  const set = git(["config", "core.hooksPath", ".githooks"]);
-  note(set.ok ? `installed: core.hooksPath → .githooks (${ours.join(", ")})` : `install skipped: ${set.out}`);
+  if (CHECK) {
+    // Not installed at all is an environment fact, not drift: a CI checkout that
+    // never ran postinstall is in this state and must not fail the gate. The
+    // condition worth failing on is a hook git DOES run having fallen behind.
+    note("hooks are not installed here (core.hooksPath unset) — nothing to compare");
+  } else {
+    const set = git(["config", "core.hooksPath", ".githooks"]);
+    note(set.ok ? `installed: core.hooksPath → .githooks (${ours.join(", ")})` : `install skipped: ${set.out}`);
+  }
 }
 
 // Best-effort exec bit (required on POSIX; a no-op on Windows).
@@ -113,4 +140,12 @@ for (const name of ours) {
   } catch {
     /* ignore — Windows / restricted FS */
   }
+}
+
+if (CHECK) {
+  if (outOfDate) {
+    note(`${outOfDate} hook(s) git runs are not what .githooks/ says — run \`npm run hooks:install\``);
+    process.exit(1);
+  }
+  note("the hooks git runs match .githooks/");
 }

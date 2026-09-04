@@ -23,6 +23,7 @@ const CASES = [
   { name: "personalize.mjs", argv: ["--forse"] },
   { name: "stacks.mjs", argv: ["apply", "--forse"] },
   { name: "verify-stack.mjs", argv: [".", "node", "--onyl=lint"] },
+  { name: "install-hooks.mjs", argv: ["--chek"] },
 ];
 
 describe("CLI flag handling", () => {
