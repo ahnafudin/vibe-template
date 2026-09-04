@@ -51,10 +51,27 @@ real thing:
 | `ionic` | detected as **Angular** |
 | `leptos` | detected as **Axum** |
 | `angular` | already marked verified, but its Karma-era `--browsers=ChromeHeadless` had stopped working |
+| `slim` | detected as **docker-compose** — slim-skeleton ships a compose file, and any repo with one would have been mis-detected the same way |
+| `ktor` | matched nothing: the pattern could only see the repository root, while `gradle init` writes `app/build.gradle.kts` |
+| `blazor` | detected as **ASP.NET Core** |
+| `bun` | inherited npm's `--if-present` from the node base; bun has no such flag, so the gate failed on every Bun project |
+| `dotnet` | `dotnet format --verify-no-changes` fails on the output of `dotnet new` itself, making every new .NET project start red |
+| `swift` | lint gate was `swiftlint`, which is a separate install and exits 127 on a stock machine |
+| `wordpress` | `phpcs --standard=WordPress` named a standard and no target, so it exited 3 with "You must supply at least one file or directory" |
 
-Three of those share one cause, and it is now a rule: **a framework built on
+Four of those share one cause, and it is now a rule: **a framework built on
 another must carry more detection signals than the one it is built on**, because
 ties break alphabetically. See the `detect` notes in `scripts/stacks.schema.json`.
+A fifth — `slim` losing to `docker-compose` — is the same shape without the
+inheritance: infrastructure entries now carry a negative weight, because a
+compose file, a chart or some `.tf` usually sits ALONGSIDE an application rather
+than being the project.
+
+A separate lesson runs through the gate failures: **a green test gate means
+different things in different languages.** `pytest`, `bun test` and `swift test`
+all exit non-zero with no tests; `cargo test`, `go test` and `node ace test` pass
+vacuously. Each is recorded as a convention on its language base, so nobody has
+to rediscover it per project.
 
 ## Entries that cannot be verified here
 
