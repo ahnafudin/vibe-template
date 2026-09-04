@@ -30,6 +30,7 @@ loads the same contract instead of nothing.
 | **Archive contract** | `docs/archive/STATUS_ARCHIVE.md` + `TASKS_ARCHIVE.md`: when work merges, its full story moves here and `AGENTS.md` keeps ≤ 1 bullet per domain — the always-loaded context never bloats. |
 | **Beads issue tracker** | Optional `bd` wiring with rules reconciled for this workflow: bd = cross-session issues, `docs/TASKS.md` = roadmap checklist, no auto-push. Silent when bd is not installed, and refuses to initialise until you rename the project — bd commits an identity, which must not ship from a template. |
 | **Auto-versioning** | A conventional-commit hook bumps semver in `package.json` and syncs **every other manifest that exists** — inside the same commit. |
+| **No agent attribution** | `.claude/settings.json` stops Claude Code adding `Co-Authored-By`, a "Generated with" line or a session link; `.githooks/commit-msg` strips them whatever tool wrote them — Cursor, Copilot, or one that does not exist yet. Human co-authors are kept, including anyone named Claude. |
 | `scripts/setup.mjs` | One-shot, idempotent, ordered bootstrap (order matters — see below). |
 
 ## Framework support
@@ -187,6 +188,8 @@ GEMINI.md  CONVENTIONS.md  .cursor/  .windsurf/  .clinerules/  .junie/  .github/
 SETUP.md               fill-in checklist · second-machine checklist
 docs/
   STACK.md             GENERATED per project: framework, core layer, gate commands
+  VERIFYING.md         how an entry earns `verified`, and what that has caught
+  TEMPLATE.md          this README, once a project has been made from the template
   PRD.md  ARCHITECTURE.md  FEATURES.md  TASKS.md  ROADMAP.md  VERSIONING.md
   archive/             STATUS_ARCHIVE.md · TASKS_ARCHIVE.md  (the anti-bloat contract)
 scripts/
@@ -196,12 +199,18 @@ scripts/
   gate.mjs             `npm run gate`
   version.mjs          semver source of truth + every manifest it syncs
   sync-agents.mjs      AGENTS.md → per-tool pointer files
+  personalize.mjs      de-template a fresh copy (version → 0.1.0, project README)
+  verify-stack.mjs     detect + run the gates of a scaffolded project
   setup.mjs  install-hooks.mjs  bd-prime.mjs
-  lib/                 shared utils (git, managed blocks, tiny JSON-Schema validator)
-  tests/               `node --test`, zero dependencies
-.claude/settings.json  Claude Code hooks (guarded `bd prime`)
-.githooks/             conventional-commit auto-version hook
-.github/workflows/     CI running the same `npm run gate`
+  lib/                 shared utils (git, globs, managed blocks, JSON-Schema subset)
+  tests/               `node --test` via run.mjs, zero dependencies
+.claude/settings.json  Claude Code hooks + no-attribution settings
+.githooks/
+  post-commit          conventional-commit auto-version
+  commit-msg           strips AI-agent attribution, whichever tool wrote it
+.github/workflows/
+  gate.yml             the same `npm run gate`, on Node 20/22/24
+  verify-stacks.yml    scaffolds real projects and verifies registry entries
 ```
 
 ## Contributing to the template itself
