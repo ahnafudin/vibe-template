@@ -16,7 +16,7 @@ One command, whatever the language: **`npm run gate`** — `npm run gate test` f
 | Gate | Command |
 |---|---|
 | `lint` | `node scripts/sync-agents.mjs --check` · `node scripts/stacks.mjs validate` |
-| `test` | `npm run test --if-present` |
+| `test` | `npm run test:template` |
 
 ## Framework conventions
 

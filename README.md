@@ -55,12 +55,12 @@ loads the same contract instead of nothing.
 Frameworks inherit their language base through `extends`, so Laravel gets PHP's rules plus its own,
 and Tauri composes Rust **and** Node.
 
-**On honesty:** 69 entries are verified — most of them against a project the framework's own
-creator produced, on GitHub's runners (`.github/workflows/verify-stacks.yml`). The remaining
-**1 is marked `"verified": false`**, and their generated `docs/STACK.md` carries a visible
-"verify these commands before trusting them" banner. A wrong command an agent believes is worse
-than one it is told to check. Those counts are asserted by the test suite, so this paragraph
-cannot quietly go stale.
+**On honesty:** all 70 entries are verified — most of them against a project the framework's own
+creator produced, on GitHub's runners (`.github/workflows/verify-stacks.yml`). Anything that is
+not gets marked `"verified": false`, and its generated `docs/STACK.md` carries a visible "verify
+these commands before trusting them" banner. A wrong command an agent believes is worse than one
+it is told to check. That count is asserted by the test suite, so this paragraph cannot quietly
+go stale.
 
 **Adding your framework** — one entry in `scripts/stacks.json`, then `npm run stack:validate`:
 

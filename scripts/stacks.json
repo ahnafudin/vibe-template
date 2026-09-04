@@ -1562,7 +1562,6 @@
       "tier": "framework",
       "label": "WordPress (plugin / theme)",
       "extends": "php",
-      "verified": false,
       "detect": {
         "any": [
           {

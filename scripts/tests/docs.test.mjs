@@ -11,7 +11,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { at, isUnrenamedTemplate, readIfExists, readJson } from "../lib/util.mjs";
-import { loadRegistry } from "../stacks.mjs";
+import { detectResolved, loadRegistry, renderDoc } from "../stacks.mjs";
 import { renderStub, TARGETS } from "../sync-agents.mjs";
 
 const pkg = readJson(at("package.json"));
@@ -130,19 +130,51 @@ describe("the README's honesty claim", () => {
     // Plain substring, not a regex: the markdown emphasis around these numbers
     // is full of asterisks, and escaping them through a template literal is how
     // this assertion silently passed on nothing the first time.
-    assert.ok(
-      readme.includes(`**On honesty:** ${verified} entries are verified`),
-      `README states a different verified count; the registry has ${verified}`,
-    );
-    const verb = unverified === 1 ? "is" : "are";
-    assert.ok(
-      readme.includes(`**${unverified} ${verb} marked \`"verified": false\`**`),
-      `README states a different unverified count; the registry has ${unverified}`,
-    );
+    if (unverified === 0) {
+      assert.ok(
+        readme.includes(`**On honesty:** all ${verified} entries are verified`),
+        `README states a different verified count; the registry has ${verified}`,
+      );
+      // With nothing left unverified the old "N is marked false" clause has no
+      // subject — and a leftover count reading `0 are marked` would be true only
+      // by accident. It must be gone, not merely correct.
+      assert.doesNotMatch(
+        readme,
+        /[*][*][0-9]+ (is|are) marked/,
+        "README still advertises an unverified count; the registry has none",
+      );
+    } else {
+      assert.ok(
+        readme.includes(`**On honesty:** ${verified} entries are verified`),
+        `README states a different verified count; the registry has ${verified}`,
+      );
+      const verb = unverified === 1 ? "is" : "are";
+      assert.ok(
+        readme.includes(`**${unverified} ${verb} marked \`"verified": false\`**`),
+        `README states a different unverified count; the registry has ${unverified}`,
+      );
+    }
   });
 
   it("does not pin an exact test count, which changes every commit", (t) => {
     if (!isUnrenamedTemplate()) return t.skip("not the template — its README was replaced");
     assert.doesNotMatch(readIfExists(at("README.md")), /runs \*\*\d+ tests\*\*/);
+  });
+});
+
+describe("the generated stack brief", () => {
+  // docs/STACK.md is GENERATED, committed, and read by agents — so it can drift
+  // from the package.json it describes without anything noticing. It had: the
+  // committed copy still advertised `npm run test --if-present` months after the
+  // template's test gate was renamed to `test:template`, so the file an agent
+  // reads to learn the gates contradicted the gates.
+  it("is what the generator would write today", (t) => {
+    if (!isUnrenamedTemplate()) return t.skip("not the template — a project regenerates its own");
+    const expected = renderDoc(detectResolved(), pkg.vibe.gates);
+    assert.equal(
+      readIfExists(at("docs/STACK.md")),
+      expected,
+      "docs/STACK.md has drifted from package.json -> vibe.gates. Run `npm run stack:apply`.",
+    );
   });
 });
