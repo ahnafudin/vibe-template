@@ -156,6 +156,24 @@ describe("the README's honesty claim", () => {
     }
   });
 
+  it("gets the registry's size and shape right too", (t) => {
+    // The honesty claim is not the only number in the README that can rot: the
+    // headline "70-entry framework registry (55 frameworks, 15 language bases)"
+    // is the first thing anyone reads, and nothing was checking it. Adding one
+    // entry would have quietly made all three wrong at once.
+    if (!isUnrenamedTemplate()) return t.skip("not the template — its README was replaced");
+    const stacks = loadRegistry();
+    const frameworks = stacks.filter((s) => s.tier === "framework").length;
+    const readme = readIfExists(at("README.md"));
+    assert.ok(readme.includes(`**${stacks.length}-entry framework registry**`), "entry count");
+    assert.ok(
+      readme.includes(`(${frameworks} frameworks,
+${stacks.length - frameworks} language bases)`) ||
+        readme.includes(`(${frameworks} frameworks, ${stacks.length - frameworks} language bases)`),
+      `README's framework/base split is stale; the registry has ${frameworks} and ${stacks.length - frameworks}`,
+    );
+  });
+
   it("does not pin an exact test count, which changes every commit", (t) => {
     if (!isUnrenamedTemplate()) return t.skip("not the template — its README was replaced");
     assert.doesNotMatch(readIfExists(at("README.md")), /runs \*\*\d+ tests\*\*/);
