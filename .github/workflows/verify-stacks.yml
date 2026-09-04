@@ -44,8 +44,10 @@ jobs:
               composer create-project codeigniter4/appstarter fixture --no-interaction
               # Every test passed; phpunit exited 1 on a RUNNER WARNING, because
               # appstarter asks for coverage and the runner has no xdebug. The
-              # gate command is right, so the environment is what gets adjusted.
-              sed -i 's/failOnWarning="true"/failOnWarning="false"/' fixture/phpunit.xml.dist || true
+              # gate command is right, so the environment is what gets adjusted:
+              # drop the coverage block rather than weaken failOnWarning.
+              perl -0pi -e 's{<coverage.*?</coverage>}{}gs; s{<coverage[^>]*/>}{}g' fixture/phpunit.xml.dist || true
+              perl -0pi -e 's{<source.*?</source>}{}gs' fixture/phpunit.xml.dist || true
 
           - id: slim
             scaffold: composer create-project slim/slim-skeleton fixture --no-interaction
@@ -63,9 +65,10 @@ jobs:
               # unattended unless it is allowed explicitly.
               composer init --no-interaction --name=acme/fixture
               composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-              composer require --dev --no-interaction --with-all-dependencies \
-                squizlabs/php_codesniffer wp-coding-standards/wpcs phpunit/phpunit \
-                phpcsstandards/phpcsutils phpcsstandards/phpcsextra
+              # Only wpcs is named: pinning phpcsutils/phpcsextra by hand forced a
+              # pair whose sniffs wpcs then could not find ("Referenced sniff ...
+              # does not exist"). Composer resolves the matching set on its own.
+              composer require --dev --no-interaction wp-coding-standards/wpcs phpunit/phpunit
               # phpcs exits 3 until the standard is REGISTERED, which installing
               # it does not do on its own.
               vendor/bin/phpcs --config-set installed_paths ../../wp-coding-standards/wpcs
@@ -102,6 +105,7 @@ jobs:
 
           # ---- Ruby ----
           - id: sinatra
+            setupRuby: true
             scaffold: |
               mkdir -p fixture && cd fixture
               # The Gemfile is written outright rather than assembled with
@@ -119,11 +123,19 @@ jobs:
               # TS5108: the generated tsconfig still names moduleResolution
               # node10, which TypeScript removed. Upstream's bug, not the gate's.
               sed -i '/moduleResolution/d' fixture/tsconfig.json || true
+              # `bun test` exits 1 when it finds nothing, so the fixture needs a
+              # real test for the gate to be exercised rather than short-circuited.
+              printf 'import { expect, test } from "bun:test";\ntest("smoke", () => expect(1).toBe(1));\n' \
+                > fixture/smoke.test.ts
 
           # ---- Swift ----
           - id: swift
             setupSwift: true
-            scaffold: mkdir -p fixture && cd fixture && swift package init --type executable
+            scaffold: |
+              mkdir -p fixture && cd fixture
+              # `--type executable` ships no Tests/ directory, and `swift test`
+              # exits 1 when there is no test target at all.
+              swift package init --type library --name fixture
 
           # Godot declares no gates (its build is an editor export), so only the
           # detection marker is meaningful here.
@@ -147,6 +159,12 @@ jobs:
 
       - uses: swift-actions/setup-swift@v2
         if: matrix.setupSwift
+
+      - uses: ruby/setup-ruby@v1
+        if: matrix.setupRuby
+        with:
+          ruby-version: "3.3"
+          bundler-cache: false
 
       - name: Scaffold ${{ matrix.id }} with its own creator
         id: scaffold

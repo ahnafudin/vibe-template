@@ -98,7 +98,8 @@
       "coreLayer": "src/services - pure modules kept apart from the server entrypoint",
       "conventions": [
         "Use the built-in `bun test`; do not add a second runner without a reason",
-        "bun has no `--if-present`, so the npm idiom for an optional script does not port — name your real commands in `vibe.gates` instead of relying on a no-op"
+        "bun has no `--if-present`, so the npm idiom for an optional script does not port — name your real commands in `vibe.gates` instead of relying on a no-op",
+        "`bun test` exits 1 on \"No tests found!\", like pytest and unlike `cargo test` or `go test` — a new Bun project's test gate is red until the first *.test.ts exists"
       ],
       "versionTargets": [
         "package.json"
@@ -487,7 +488,8 @@
       "coreLayer": "Sources/<Core> - a target separate from the App target",
       "conventions": [
         "Release version (MARKETING_VERSION) is set by hand in Xcode - see docs/VERSIONING.md",
-        "SwiftLint is a separate install, not part of the toolchain — `swiftlint` exits 127 on a stock machine, so it is not a default gate here; add it to `vibe.gates` once you have installed it"
+        "SwiftLint is a separate install, not part of the toolchain — `swiftlint` exits 127 on a stock machine, so it is not a default gate here; add it to `vibe.gates` once you have installed it",
+        "`swift test` exits 1 when the package has no test target at all — `swift package init --type executable` creates none, so add a Tests/ target before expecting a green test gate"
       ],
       "versionTargets": []
     },
@@ -2126,7 +2128,7 @@
       "tier": "framework",
       "label": "Blazor",
       "extends": "dotnet",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
