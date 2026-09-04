@@ -21,7 +21,7 @@ import { dirname, join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expandGlob, isDir, isFile } from "./lib/glob.mjs";
 import { validate } from "./lib/jsonschema.mjs";
-import { at, isUnrenamedTemplate, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
+import { at, isUnrenamedTemplate, parseFlags, readJson, ROOT, upsertManagedBlock, writeIfChanged } from "./lib/util.mjs";
 
 const REGISTRY = at("scripts", "stacks.json");
 const MAX_SCAN_BYTES = 1024 * 1024; // never slurp a huge file just to grep it
@@ -427,17 +427,16 @@ function main(argv) {
       // the one command here that writes files, aimed at the wrong project.
       // `detect` already accepted a directory, which is exactly why the omission
       // stayed invisible: the pair looked symmetrical.
-      const rest = argv.slice(1);
-      const unknown = rest.filter((a) => a.startsWith("-") && a !== "--force");
-      if (unknown.length) {
-        process.stderr.write(`[stack] unknown flag: ${unknown.join(", ")}\n`);
+      const { positional, flags, problems } = parseFlags(argv.slice(1), { known: ["--force"] });
+      if (problems.length) {
+        process.stderr.write(`[stack] ${problems.join("; ")}\n`);
         process.stderr.write("usage: stacks.mjs apply [dir] [--force]\n");
         process.exit(2);
       }
-      const dir = rest.find((a) => !a.startsWith("-"));
+      const [dir] = positional;
       const root = dir ? resolvePath(dir) : ROOT;
       if (dir) process.stderr.write(`[stack] target: ${root}\n`);
-      const r = apply({ force: rest.includes("--force"), root });
+      const r = apply({ force: flags.has("--force"), root });
       process.stderr.write(
         r.primary
           ? `[stack] ${r.primary.label}${r.secondary.length ? ` (+ ${r.secondary.map((s) => s.id).join(", ")})` : ""}\n`

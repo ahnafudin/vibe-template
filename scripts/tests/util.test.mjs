@@ -15,6 +15,7 @@ import {
   NEEDS_SHELL,
   PLACEHOLDER_NAME,
   norm,
+  parseFlags,
   runTool,
   safeDirectoryHint,
   tryRun,
@@ -209,5 +210,47 @@ describe("isUnrenamedTemplate", () => {
     // every derived project's very first `npm run gate` red.
     if (!isUnrenamedTemplate()) return t.skip("not the template — this project has been renamed");
     assert.equal(isUnrenamedTemplate(), true, "package.json here must keep the placeholder name");
+  });
+});
+
+describe("parseFlags", () => {
+  // Every CLI here used to test flags with `argv.includes("--check")`, which
+  // ignores a typo and falls through to the DEFAULT branch. When the flag exists
+  // to make a command do less, that is a hazard rather than an annoyance:
+  // `sync-agents.mjs --chek` turned "verify, write nothing" into a full rewrite
+  // that exited 0, so the lint gate calling it could never have failed.
+  it("separates positional arguments from flags", () => {
+    const r = parseFlags(["dir", "id", "--run"], { known: ["--run"] });
+    assert.deepEqual(r.positional, ["dir", "id"]);
+    assert.equal(r.flags.get("--run"), true);
+    assert.deepEqual(r.problems, []);
+  });
+
+  it("refuses a flag it was not told about", () => {
+    const r = parseFlags(["--chek"], { known: ["--check"] });
+    assert.deepEqual(r.problems, ["unknown flag: --chek"]);
+    assert.equal(r.flags.has("--check"), false, "a typo must never satisfy the real flag");
+  });
+
+  it("takes a value as --f=v or --f v", () => {
+    for (const argv of [["--only=lint,test"], ["--only", "lint,test"]]) {
+      assert.equal(parseFlags(argv, { valued: ["--only"] }).flags.get("--only"), "lint,test");
+    }
+  });
+
+  it("does not swallow a following flag as a value", () => {
+    // `--only --run` is a missing value, not a gate called "--run".
+    const r = parseFlags(["--only", "--run"], { known: ["--run"], valued: ["--only"] });
+    assert.deepEqual(r.problems, ["--only needs a value"]);
+  });
+
+  it("reports a value flag left empty", () => {
+    assert.deepEqual(parseFlags(["--only="], { valued: ["--only"] }).problems, ["--only needs a value"]);
+    assert.deepEqual(parseFlags(["--only"], { valued: ["--only"] }).problems, ["--only needs a value"]);
+  });
+
+  it("collects every problem, so one run reports them all", () => {
+    const r = parseFlags(["--a", "--b"], { known: [] });
+    assert.deepEqual(r.problems, ["unknown flag: --a", "unknown flag: --b"]);
   });
 });

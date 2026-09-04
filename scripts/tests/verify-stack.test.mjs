@@ -85,8 +85,10 @@ describe("argument parsing", () => {
   });
 
   it("refuses --only with no gate named", () => {
-    assert.match(parseArgs(["fx", "express", "--only"]).error, /at least one gate name/);
-    assert.match(parseArgs(["fx", "express", "--only="]).error, /at least one gate name/);
+    assert.match(parseArgs(["fx", "express", "--only"]).error, /needs a value/);
+    assert.match(parseArgs(["fx", "express", "--only="]).error, /needs a value/);
+    // and a following flag is not a gate name
+    assert.match(parseArgs(["fx", "express", "--only", "--run"]).error, /needs a value/);
   });
 });
 

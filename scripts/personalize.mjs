@@ -24,7 +24,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { isUnrenamedTemplate, note as write, readJson, ROOT, writeIfChanged } from "./lib/util.mjs";
+import { isUnrenamedTemplate, note as write, parseFlags, readJson, ROOT, writeIfChanged } from "./lib/util.mjs";
 
 /** Marks a README as still being the template's own, and therefore replaceable. */
 export const TEMPLATE_README_MARKER = "<!-- vibe:template-readme -->";
@@ -102,7 +102,14 @@ export function personalize({ root = ROOT } = {}) {
   return { skipped: null, changed };
 }
 
-function main() {
+function main(argv = []) {
+  // It took no arguments at all, so anything typed at it disappeared without
+  // comment — including a `--force` somebody might reasonably expect to exist.
+  const { problems } = parseFlags(argv, { known: [] });
+  if (problems.length) {
+    write(`${problems.join("; ")} — personalize takes no flags`);
+    return 2;
+  }
   const { skipped, changed } = personalize();
   if (skipped) {
     note(`nothing to do — ${skipped}.`);
@@ -118,5 +125,5 @@ function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exit(main());
+  process.exit(main(process.argv.slice(2)));
 }

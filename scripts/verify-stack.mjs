@@ -20,6 +20,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runGates } from "./gate.mjs";
+import { parseFlags } from "./lib/util.mjs";
 import { detectResolved, loadRegistry, mergeGates } from "./stacks.mjs";
 
 const note = (msg) => process.stderr.write(`${msg}\n`);
@@ -79,28 +80,13 @@ const USAGE = "usage: verify-stack.mjs <dir> <expected-id> [--run] [--only lint,
  * Silently doing something other than what was asked is worse than refusing.
  */
 export function parseArgs(argv) {
-  const positional = [];
-  const only = [];
-  let run = false;
-  let error = null;
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--run") {
-      run = true;
-    } else if (arg === "--only" || arg.startsWith("--only=")) {
-      const value = arg === "--only" ? argv[++i] : arg.slice("--only=".length);
-      const names = (value ?? "").split(",").filter(Boolean);
-      if (!names.length) error ??= "--only needs at least one gate name, e.g. --only=lint";
-      only.push(...names);
-    } else if (arg.startsWith("-")) {
-      // A mistyped flag must not be quietly ignored: --onyl=lint would other-
-      // wise run every gate and still look like it had honoured the request.
-      error ??= `unknown flag: ${arg}`;
-    } else {
-      positional.push(arg);
-    }
-  }
-  return { positional, only, run, error };
+  const { positional, flags, problems } = parseFlags(argv, { known: ["--run"], valued: ["--only"] });
+  return {
+    positional,
+    only: (flags.get("--only") ?? "").split(",").filter(Boolean),
+    run: flags.has("--run"),
+    error: problems[0] ?? null,
+  };
 }
 
 function main(argv) {

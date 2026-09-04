@@ -21,7 +21,7 @@
 
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { at, readJson } from "./lib/util.mjs";
+import { at, parseFlags, readJson } from "./lib/util.mjs";
 import { detectResolved, mergeGates } from "./stacks.mjs";
 
 const ORDER = ["lint", "typecheck", "test", "build"];
@@ -97,8 +97,13 @@ export function runGates(gates, { cwd = at(), only = [] } = {}) {
 }
 
 function main(argv) {
-  const list = argv.includes("--list");
-  const only = argv.filter((a) => !a.startsWith("-"));
+  const { positional: only, flags, problems } = parseFlags(argv, { known: ["--list"] });
+  if (problems.length) {
+    process.stderr.write(`[gate] ${problems.join("; ")}\n`);
+    process.stderr.write("usage: gate.mjs [--list] [gate ...]\n");
+    return 2;
+  }
+  const list = flags.has("--list");
   const { gates, source } = loadGates();
   const keys = gateOrder(gates);
 

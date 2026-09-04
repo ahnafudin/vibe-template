@@ -129,7 +129,20 @@ directory it was given. `detect` did accept one, which is what made the pair loo
 symmetrical and the omission invisible — and every test fixture manufactured a
 `docs/` directory, so the ENOENT a real fresh project hits was invisible too.
 
-The shape is the same in all three, and it is the shape worth remembering: **a
+Sweeping the remaining CLIs for the same shape found it in four more. Each tested
+its flags with `argv.includes("--check")`, which ignores a typo and falls through
+to the DEFAULT branch — and where a flag exists to make a command do LESS, the
+default is the dangerous branch. The worst was
+**`sync-agents.mjs --chek`, which turned "verify and write nothing" into a full
+rewrite that exited 0**: it repaired the drift `--check` exists to report, so the
+lint gate calling it could never have failed.
+
+They now share one parser, `parseFlags` in `scripts/lib/util.mjs`, which refuses
+any flag it was not told about. A unit test proves the parser works; a separate
+one spawns every CLI with a bogus flag, because the parser existing does not mean
+a CLI calls it — and that gap was the entire bug.
+
+The shape is the same in all of them, and it is the shape worth remembering: **a
 check that silently does less than it was asked to is indistinguishable from one
-that passed.** Anything that narrows what gets verified — a flag, a filter, an
+that passed.** Anything that narrows what a command does — a flag, a filter, an
 argument quietly dropped — has to fail loudly when the narrowing makes no sense.

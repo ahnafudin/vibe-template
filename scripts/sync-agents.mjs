@@ -21,7 +21,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
-import { at, readIfExists, writeIfChanged } from "./lib/util.mjs";
+import { at, parseFlags, readIfExists, writeIfChanged } from "./lib/util.mjs";
 
 const CANONICAL = "AGENTS.md";
 
@@ -117,11 +117,19 @@ export function sync({ check = false } = {}) {
 }
 
 function main(argv) {
+  // `--chek` used to fall through to the WRITE branch and exit 0, quietly
+  // repairing the drift `--check` exists to report.
+  const { flags, problems } = parseFlags(argv, { known: ["--check"] });
+  if (problems.length) {
+    process.stderr.write(`[agents] ${problems.join("; ")}\n`);
+    process.stderr.write("usage: sync-agents.mjs [--check]\n");
+    return 2;
+  }
   if (!readIfExists(at(CANONICAL))) {
     process.stderr.write(`[agents] ${CANONICAL} is missing — nothing to point at. Aborting.\n`);
     return 1;
   }
-  if (argv.includes("--check")) {
+  if (flags.has("--check")) {
     const { stale } = sync({ check: true });
     if (stale.length) {
       process.stderr.write(`[agents] out of date: ${stale.join(", ")}\n`);

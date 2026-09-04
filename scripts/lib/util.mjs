@@ -115,6 +115,53 @@ export function at(...parts) {
   return join(ROOT, ...parts);
 }
 
+/**
+ * Split argv into positional arguments and flags, REFUSING any flag not listed.
+ *
+ * Every CLI here tested flags with `argv.includes("--check")`, which silently
+ * ignores a mistyped flag and falls through to the default branch. For a flag
+ * whose whole job is to make a command do LESS, that is dangerous rather than
+ * merely untidy: `sync-agents.mjs --chek` turned "verify and write nothing" into
+ * a full rewrite that exited 0, so a drifted pointer file was repaired instead
+ * of reported — and the lint gate that calls it could never have failed.
+ *
+ * `valued` names flags taking a value, accepted as `--f=v` or `--f v`.
+ * Returns `problems` rather than throwing: each CLI prints its own usage.
+ */
+export function parseFlags(argv, { known = [], valued = [] } = {}) {
+  const all = [...known, ...valued];
+  const flags = new Map();
+  const positional = [];
+  const problems = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg.startsWith("-")) {
+      positional.push(arg);
+      continue;
+    }
+    const eq = arg.indexOf("=");
+    const name = eq === -1 ? arg : arg.slice(0, eq);
+    if (!all.includes(name)) {
+      problems.push(`unknown flag: ${arg}`);
+      continue;
+    }
+    if (!valued.includes(name)) {
+      flags.set(name, true);
+      continue;
+    }
+    // A following flag is never the value: `--only --run` is a missing value,
+    // not a gate named "--run".
+    const next = eq === -1 ? argv[i + 1] : arg.slice(eq + 1);
+    if (!next || (eq === -1 && next.startsWith("-"))) {
+      problems.push(`${name} needs a value`);
+      continue;
+    }
+    if (eq === -1) i++;
+    flags.set(name, next);
+  }
+  return { positional, flags, problems };
+}
+
 /** Read a UTF-8 file, or `null` when it does not exist. */
 export function readIfExists(path) {
   return existsSync(path) ? readFileSync(path, "utf8") : null;
