@@ -39,15 +39,13 @@ jobs:
       matrix:
         include:
           # ---- PHP (php + composer are preinstalled) ----
+          # appstarter's phpunit config asks for coverage, so phpunit exits 1 on a
+          # runner WARNING when xdebug is missing — with every test passing. The
+          # gate command is right and so is the project's config; the runner is
+          # what was short, so it gets xdebug rather than the project getting edited.
           - id: codeigniter4
-            scaffold: |
-              composer create-project codeigniter4/appstarter fixture --no-interaction
-              # Every test passed; phpunit exited 1 on a RUNNER WARNING, because
-              # appstarter asks for coverage and the runner has no xdebug. The
-              # gate command is right, so the environment is what gets adjusted:
-              # drop the coverage block rather than weaken failOnWarning.
-              perl -0pi -e 's{<coverage.*?</coverage>}{}gs; s{<coverage[^>]*/>}{}g' fixture/phpunit.xml.dist || true
-              perl -0pi -e 's{<source.*?</source>}{}gs' fixture/phpunit.xml.dist || true
+            setupPhp: true
+            scaffold: composer create-project codeigniter4/appstarter fixture --no-interaction
 
           - id: slim
             scaffold: composer create-project slim/slim-skeleton fixture --no-interaction
@@ -65,13 +63,14 @@ jobs:
               # unattended unless it is allowed explicitly.
               composer init --no-interaction --name=acme/fixture
               composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-              # Only wpcs is named: pinning phpcsutils/phpcsextra by hand forced a
-              # pair whose sniffs wpcs then could not find ("Referenced sniff ...
-              # does not exist"). Composer resolves the matching set on its own.
+              # Only wpcs is named; composer resolves PHPCSUtils and PHPCSExtra to a
+              # matching set on its own.
               composer require --dev --no-interaction wp-coding-standards/wpcs phpunit/phpunit
-              # phpcs exits 3 until the standard is REGISTERED, which installing
-              # it does not do on its own.
-              vendor/bin/phpcs --config-set installed_paths ../../wp-coding-standards/wpcs
+              # No manual `--config-set installed_paths` here: pointing phpcs at
+              # wpcs alone hid PHPCSExtra, whose Universal.* sniffs wpcs itself
+              # references ("Referenced sniff ... does not exist"). The composer
+              # plugin allowed above registers every installed standard.
+              vendor/bin/phpcs -i
 
           # ---- JVM ----
           - id: quarkus
@@ -114,6 +113,9 @@ jobs:
               printf 'source "https://rubygems.org"\n' > Gemfile
               printf 'gem "sinatra"\ngem "rackup"\ngem "rspec"\ngem "rubocop"\n' >> Gemfile
               bundle install
+              # rubocop failed the fixture's own Gemfile (7 style offences) — it was
+              # right to. A real project's code is rubocop-clean before the gate runs.
+              bundle exec rubocop -A || true
 
           # ---- Bun ----
           - id: elysia
@@ -166,6 +168,12 @@ jobs:
 
       - uses: swift-actions/setup-swift@v2
         if: matrix.setupSwift
+
+      - uses: shivammathur/setup-php@v2
+        if: matrix.setupPhp
+        with:
+          php-version: "8.3"
+          coverage: xdebug
 
       - uses: ruby/setup-ruby@v1
         if: matrix.setupRuby

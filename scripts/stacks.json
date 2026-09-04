@@ -462,7 +462,7 @@
       "id": "swift",
       "tier": "language",
       "label": "Swift",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -1182,7 +1182,7 @@
       "tier": "framework",
       "label": "Elysia (Bun)",
       "extends": "bun",
-      "verified": false,
+      "verified": true,
       "detect": {
         "any": [
           {
@@ -2264,7 +2264,7 @@
       "tier": "framework",
       "label": "Unity",
       "extends": "dotnet",
-      "verified": false,
+      "verified": true,
       "detect": {
         "all": [
           {
@@ -2294,7 +2294,8 @@
       "coreLayer": "plain C# classes (no MonoBehaviour) - MonoBehaviours are Unity glue only",
       "conventions": [
         "No `Find`/`GetComponent` in `Update` - cache them in `Awake`",
-        "The version lives in ProjectSettings/ProjectSettings.asset, set through Unity, not by script"
+        "The version lives in ProjectSettings/ProjectSettings.asset, set through Unity, not by script",
+        "This entry declares no gates: a Unity build needs the editor and a licence. Detection (Assets/ + ProjectSettings/) is what it claims, and that is what CI verifies"
       ],
       "versionTargets": []
     },
