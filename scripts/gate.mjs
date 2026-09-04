@@ -67,6 +67,23 @@ function run(cmd, cwd) {
  */
 export function runGates(gates, { cwd = at(), only = [] } = {}) {
   const keys = gateOrder(gates);
+  // An `only` naming no real gate must NOT be a pass. Filtering alone selects
+  // nothing, the loop below never runs, and this returns ok:true having checked
+  // nothing at all — a green that means "I did not look". gate.mjs's own CLI
+  // catches that, but verify-stack.mjs calls straight in here and reported
+  // `PASSED :` with an empty list, which is how an entry could be marked
+  // verified without a single gate having run. The guard belongs in the runner,
+  // where every caller gets it, not in one caller's argument parsing.
+  const unknown = only.filter((k) => !keys.includes(k));
+  if (unknown.length) {
+    return {
+      ok: false,
+      passed: [],
+      failed: null,
+      code: 2,
+      reason: `unknown gate: ${unknown.join(", ")} — available: ${keys.join(", ") || "(none configured)"}`,
+    };
+  }
   const selected = only.length ? keys.filter((k) => only.includes(k)) : keys;
   const passed = [];
   for (const key of selected) {

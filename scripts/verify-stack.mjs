@@ -57,26 +57,66 @@ export function verifyStack(dir, expected, { run = false, only = [] } = {}) {
       ranked,
       gates,
       ran: true,
+      // `failed` is null when the run was REFUSED rather than failed — an
+      // --only naming no real gate. Blaming `gate \`null\`` for that hid what
+      // had actually gone wrong, which was the request, not the project.
       reason:
-        `gate \`${result.failed}\` failed (exit ${result.code})` +
-        (result.reason ? ` — ${result.reason}` : "") +
+        (result.failed ? `gate \`${result.failed}\` failed (exit ${result.code})` : result.reason) +
+        (result.failed && result.reason ? ` — ${result.reason}` : "") +
         (result.passed.length ? `. Passed first: ${result.passed.join(", ")}` : ""),
     };
   }
   return { ok: true, id, ranked, gates, ran: true, passed: result.passed };
 }
 
+const USAGE = "usage: verify-stack.mjs <dir> <expected-id> [--run] [--only lint,test]";
+
+/**
+ * Both `--only=lint,test` and `--only lint,test` — the space form is the one
+ * this file's own usage line documents, and it used to be dropped on the floor:
+ * `"--only".split("=")[1]` is undefined, so the flag became an empty selection
+ * (every gate ran), and `lint` fell through into the positional arguments.
+ * Silently doing something other than what was asked is worse than refusing.
+ */
+export function parseArgs(argv) {
+  const positional = [];
+  const only = [];
+  let run = false;
+  let error = null;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--run") {
+      run = true;
+    } else if (arg === "--only" || arg.startsWith("--only=")) {
+      const value = arg === "--only" ? argv[++i] : arg.slice("--only=".length);
+      const names = (value ?? "").split(",").filter(Boolean);
+      if (!names.length) error ??= "--only needs at least one gate name, e.g. --only=lint";
+      only.push(...names);
+    } else if (arg.startsWith("-")) {
+      // A mistyped flag must not be quietly ignored: --onyl=lint would other-
+      // wise run every gate and still look like it had honoured the request.
+      error ??= `unknown flag: ${arg}`;
+    } else {
+      positional.push(arg);
+    }
+  }
+  return { positional, only, run, error };
+}
+
 function main(argv) {
-  const flags = argv.filter((a) => a.startsWith("--"));
-  const [dir, expected] = argv.filter((a) => !a.startsWith("--"));
-  if (!dir || !expected) {
-    note("usage: verify-stack.mjs <dir> <expected-id> [--run] [--only lint,test]");
+  const { positional, only, run, error } = parseArgs(argv);
+  const [dir, expected] = positional;
+  if (error) {
+    note(`[verify] ${error}`);
+    note(USAGE);
     return 2;
   }
-  const onlyFlag = flags.find((f) => f.startsWith("--only"));
-  const only = onlyFlag ? (onlyFlag.split("=")[1] ?? "").split(",").filter(Boolean) : [];
+  if (!dir || !expected) {
+    note(USAGE);
+    return 2;
+  }
 
-  const r = verifyStack(dir, expected, { run: flags.includes("--run"), only });
+  const r = verifyStack(dir, expected, { run, only });
 
   note(`[verify] entry    : ${expected}`);
   note(`[verify] detected : ${r.id ?? "(none)"}`);
