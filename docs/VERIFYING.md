@@ -122,7 +122,14 @@ script's own usage line documents, and it was parsed as `"--only".split("=")[1]`
 fell through into the positional arguments. Both forms now work, and a mistyped
 flag is refused rather than ignored.
 
-The shape is the same in both, and it is the shape worth remembering: **a check
-that silently does less than it was asked to is indistinguishable from one that
-passed.** Anything that narrows what gets verified has to fail loudly when the
-narrowing makes no sense.
+Looking for the same shape elsewhere found it in the one command that writes
+files. **`stacks.mjs apply ../my-app` configured this template instead.** The
+`apply()` function had always taken a root; the CLI simply never passed the
+directory it was given. `detect` did accept one, which is what made the pair look
+symmetrical and the omission invisible — and every test fixture manufactured a
+`docs/` directory, so the ENOENT a real fresh project hits was invisible too.
+
+The shape is the same in all three, and it is the shape worth remembering: **a
+check that silently does less than it was asked to is indistinguishable from one
+that passed.** Anything that narrows what gets verified — a flag, a filter, an
+argument quietly dropped — has to fail loudly when the narrowing makes no sense.

@@ -3,7 +3,7 @@
 // explicit: anything used from 2+ places becomes a shared util.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -123,6 +123,12 @@ export function readIfExists(path) {
 /** Write only when the content actually changed; returns whether it wrote. */
 export function writeIfChanged(path, next) {
   if (readIfExists(path) === next) return false;
+  // Create the parent first. `stacks.mjs apply` writes docs/STACK.md, and a
+  // project that has no docs/ yet — which is most of them, on the first run —
+  // got an ENOENT stack trace AFTER package.json had already been rewritten:
+  // half-applied, and loud in the wrong place. This only ever worked because
+  // the one directory it was aimed at, this template, already had docs/.
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, next);
   return true;
 }

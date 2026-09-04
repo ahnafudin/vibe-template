@@ -417,12 +417,27 @@ function main(argv) {
       return;
     }
     case "doc": {
-      const found = detectResolved(ROOT, stacks);
+      const found = detectResolved(arg ? resolvePath(arg) : ROOT, stacks);
       process.stdout.write(renderDoc(found, found.primary ? mergeGates(found.primary, found.secondary) : {}));
       return;
     }
     case "apply": {
-      const r = apply({ force: argv.includes("--force") });
+      // `apply()` has always taken a root; this CLI just never passed one, so
+      // `stacks.mjs apply ../my-app` silently configured THE TEMPLATE instead —
+      // the one command here that writes files, aimed at the wrong project.
+      // `detect` already accepted a directory, which is exactly why the omission
+      // stayed invisible: the pair looked symmetrical.
+      const rest = argv.slice(1);
+      const unknown = rest.filter((a) => a.startsWith("-") && a !== "--force");
+      if (unknown.length) {
+        process.stderr.write(`[stack] unknown flag: ${unknown.join(", ")}\n`);
+        process.stderr.write("usage: stacks.mjs apply [dir] [--force]\n");
+        process.exit(2);
+      }
+      const dir = rest.find((a) => !a.startsWith("-"));
+      const root = dir ? resolvePath(dir) : ROOT;
+      if (dir) process.stderr.write(`[stack] target: ${root}\n`);
+      const r = apply({ force: rest.includes("--force"), root });
       process.stderr.write(
         r.primary
           ? `[stack] ${r.primary.label}${r.secondary.length ? ` (+ ${r.secondary.map((s) => s.id).join(", ")})` : ""}\n`
@@ -434,7 +449,9 @@ function main(argv) {
       return;
     }
     default:
-      process.stderr.write("usage: stacks.mjs <list|show <id>|detect|doc|apply [--force]>\n");
+      process.stderr.write(
+        "usage: stacks.mjs <list | show <id> | detect [dir] | doc [dir] | apply [dir] [--force]>\n",
+      );
       process.exit(cmd ? 1 : 0);
   }
 }

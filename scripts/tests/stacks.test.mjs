@@ -4,10 +4,12 @@
 // detection rules that are easy to get subtly wrong.
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { apply, detect, detectResolved, loadRegistry, mergeGates, mergeIgnore, renderDoc, resolve, validateRegistry } from "../stacks.mjs";
 
 const stacks = loadRegistry();
@@ -65,12 +67,31 @@ describe("registry integrity", () => {
     }
   });
 
-  it("marks unverified entries so the generated doc can warn about them", () => {
-    // The promise in the docs is honesty, not omniscience: entries we could not
-    // verify must SAY so rather than look authoritative.
-    const unverified = stacks.filter((s) => s.verified === false);
-    assert.ok(unverified.length > 0, "if every entry claims to be verified, the flag is not being used");
-    for (const s of unverified) assert.equal(typeof s.label, "string");
+  it("warns in the generated doc about an entry that is not verified", () => {
+    // The promise in the docs is honesty, not omniscience: an entry nobody has
+    // run must SAY so rather than look authoritative.
+    //
+    // This used to assert that at least one entry WAS unverified — a fair guard
+    // while the registry was young, since it caught someone flipping the flag
+    // without doing the work. It stopped being fair once CI had genuinely
+    // verified all 70: keeping it would have meant keeping a fake unverified
+    // entry forever to satisfy a test. So it tests the MECHANISM instead, which
+    // is what actually has to keep working; earning the flag is CI's job.
+    const shaky = { ...resolve(stacks, "express"), id: "shaky", verified: false };
+    const doc = renderDoc({ primary: shaky, secondary: [], ranked: [] }, { test: "npm test" });
+    assert.match(doc, /Unverified commands/);
+    assert.match(doc, /`shaky`/, "the banner must name which entry is unverified");
+    assert.match(doc, /Do NOT conclude the build is broken/, "an agent needs telling not to panic");
+
+    const solid = { ...resolve(stacks, "express"), verified: true };
+    const clean = renderDoc({ primary: solid, secondary: [], ranked: [] }, { test: "npm test" });
+    assert.doesNotMatch(clean, /Unverified commands/, "a verified entry must not cry wolf");
+  });
+
+  it("gives every unverified entry a label to name in that banner", () => {
+    for (const s of stacks.filter((s) => s.verified === false)) {
+      assert.equal(typeof s.label, "string", `${s.id} has no label`);
+    }
   });
 });
 
@@ -361,5 +382,45 @@ describe("apply(): the template's own gates must not survive into a project", ()
     const doc = readFileSync(join(dir, "docs", "STACK.md"), "utf8");
     assert.match(doc, /eslint \./);
     assert.match(doc, /vitest run/);
+  });
+});
+
+describe("apply() aimed at another project", () => {
+  const CLI = fileURLToPath(new URL("../stacks.mjs", import.meta.url));
+  const TEMPLATE_DOC = fileURLToPath(new URL("../../docs/STACK.md", import.meta.url));
+
+  it("creates docs/ in a project that has none", () => {
+    // Every fixture above manufactures `docs/.keep`, which is exactly why this
+    // was invisible: apply writes docs/STACK.md, and a real fresh project has no
+    // docs/ at all. It threw ENOENT — AFTER rewriting package.json, so the
+    // project was left half-configured and the stack trace blamed the wrong file.
+    const dir = repo({ "package.json": pkg({ name: "fresh", dependencies: { express: "4.19.0" } }) });
+    assert.equal(existsSync(join(dir, "docs")), false, "the fixture must not pre-create docs/");
+    const result = apply({ root: dir });
+    assert.equal(result.primary.id, "express");
+    assert.ok(existsSync(join(dir, "docs", "STACK.md")), "apply must create the directory it writes into");
+  });
+
+  it("writes to the directory named on the command line, not to the template", () => {
+    // The bug this pins: the CLI called `apply({ force })` and never passed the
+    // directory, so `stacks.mjs apply ../my-app` configured THIS REPO instead.
+    // `detect` already took a directory, which is what made the pair look
+    // symmetrical and the omission invisible. It is the one command that writes.
+    const dir = repo({ "package.json": pkg({ name: "elsewhere", dependencies: { express: "4.19.0" } }) });
+    const before = readFileSync(TEMPLATE_DOC, "utf8");
+
+    const r = spawnSync(process.execPath, [CLI, "apply", dir], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+
+    const target = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+    assert.equal(target.vibe.stack, "express", "the named project must be the one configured");
+    assert.equal(readFileSync(TEMPLATE_DOC, "utf8"), before, "the template must not have been touched");
+  });
+
+  it("refuses a mistyped flag rather than running as if it were absent", () => {
+    const dir = repo({ "package.json": pkg({ name: "flagged", dependencies: { express: "4.19.0" } }) });
+    const r = spawnSync(process.execPath, [CLI, "apply", dir, "--forse"], { encoding: "utf8" });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /unknown flag: --forse/);
   });
 });
