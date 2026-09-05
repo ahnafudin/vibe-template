@@ -18,7 +18,7 @@ trigger: always_on
 - **Finish 100%.** One task complete — code, tests, gates green — before starting the next.
 - **No duplication.** Anything used from 2+ places gets extracted into a shared util. No dead code, no orphan files.
 - **Never commit or push unless the owner asks**, and never rewrite pushed history.
-- **No self-attribution in commits.** Do not add a `Co-Authored-By` line for yourself, a "Generated with …" line, or a session link — whichever tool you are. A `commit-msg` hook strips them anyway; human co-authors are kept.
+- **One author per commit.** Do not add a `Co-Authored-By` line — not for yourself, not for anyone — nor a "Generated with …" line or a session link, whichever tool you are. A `commit-msg` hook removes every such trailer and CI fails the build if one lands anyway. Credit collaborators in the commit body instead.
 - **Ask ONE question when genuinely unsure** instead of guessing.
 
 ## Read docs by route, not wholesale

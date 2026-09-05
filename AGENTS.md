@@ -47,14 +47,17 @@ Treat the rules below as if they were prepended to every request:
   `docs/TASKS.md` stays the roadmap checklist.
 - **Avoid AI-slop design:** follow the project's design tokens and original assets; no generic
   template look. <!-- TODO:fill — point at the design-token file -->
-- **No agent attribution in commits.** Do not add `Co-Authored-By` for yourself, a
-  "Generated with …" line, or a session link. Human co-authors are fine and are kept.
+- **One author per commit.** Do not add a `Co-Authored-By` line — not for yourself and not
+  for anyone else — nor a "Generated with …" line or a session link. Credit collaborators
+  in the commit body, which is prose and reaches no contributor list.
   Two things enforce this, and you should still not rely on either: `.githooks/commit-msg`
-  strips it whatever tool you are, and `.github/workflows/attribution.yml` fails the build
-  if a commit carries it anyway — because a hook cannot run before it is installed, and git
-  forbids committing `core.hooksPath`, so a fresh clone has none until `npm install` or
-  `npm run setup` has run. One such commit puts a bot in the repository's GitHub
-  contributor list, and the only way back out is rewriting published history.
+  removes every such trailer whatever tool you are, and `.github/workflows/attribution.yml`
+  fails the build if a commit carries one anyway — because a hook cannot run before it is
+  installed, and git forbids committing `core.hooksPath`, so a fresh clone has none until
+  `npm install` or `npm run setup` has run. One such trailer adds that account to the
+  repository's GitHub contributor list, and the only way back out is rewriting published
+  history. Telling agents from people was tried and abandoned: by name it deleted a real
+  person, and by bot address it needed a list that must grow with every new agent.
 - **On completion:** tick the item in `docs/TASKS.md`, update docs when an architecture decision
   changed (full build history goes to `docs/archive/STATUS_ARCHIVE.md` — keep this file's
   "Current state" to one bullet per domain), and report: what was done, which files changed,

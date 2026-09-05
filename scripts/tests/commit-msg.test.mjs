@@ -52,22 +52,25 @@ describe("commit-msg strips agent attribution", () => {
     assert.match(out, /^feat: a real change/);
   });
 
-  it("KEEPS a human co-author, including one named Claude", () => {
-    // Both of these were deleted by the first version of the pattern: matching
-    // product names case-insensitively made "Amp" match inside "example.com",
-    // and "Claude" is a real person's name.
+  it("removes EVERY co-author line, not only an agent's", () => {
+    // The project's rule is one author per commit. Two earlier versions tried to
+    // tell agents from people and both failed: matching product names
+    // case-insensitively made "Amp" match inside "example.com" and deleted a
+    // person, and matching by bot address left a list that has to grow with
+    // every new agent — where one missed entry is permanent, because that
+    // account lands in the GitHub contributor list until history is rewritten.
     const { out, error } = run(
       [
         "fix: something",
         "",
-        "Co-authored-by: Ada Lovelace <ada@example.com>",
-        "Co-authored-by: Claude Monet <claude.monet@example.org>",
+        "Co-authored-by: A Person <person@example.test>",
+        "Co-authored-by: Some Agent <noreply@anthropic.com>",
         "",
       ].join("\n"),
     );
     if (error) return;
-    assert.match(out, /Ada Lovelace <ada@example\.com>/);
-    assert.match(out, /Claude Monet <claude\.monet@example\.org>/);
+    assert.doesNotMatch(out, /Co-authored-by:/i, "no co-author trailer may survive");
+    assert.match(out, /^fix: something/);
   });
 
   it("leaves prose that merely discusses attribution alone", () => {

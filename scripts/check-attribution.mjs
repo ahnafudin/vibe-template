@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/check-attribution.mjs — fail when a commit carries AI-agent attribution.
+// scripts/check-attribution.mjs — fail when a commit carries an attribution trailer.
 //
 //   node scripts/check-attribution.mjs [--range A..B] [--quiet]
 //
@@ -12,16 +12,23 @@
 //   * `npm install --ignore-scripts` skips postinstall entirely.
 //   * A non-JS project may never run npm at all.
 //
-// Every one of those leaves a window where an agent can commit unattributed-to
-// nobody, and the cost of that window is permanent: a bot in the repository's
-// GitHub contributor list, removable only by rewriting published history.
+// Every one of those leaves a window in which an agent can write its own name
+// into the history, and the cost of that window is permanent: an extra account
+// in the repository's GitHub contributor list, removable only by rewriting
+// published history.
 //
 // So this runs in CI, where none of the local setup matters. It catches the
 // first push — while a rewrite is still cheap, because nobody else has cloned.
 //
-// The bot list is NOT duplicated here. It is read out of .githooks/commit-msg,
-// which stays the single source of truth: a list that can drift between the
-// thing that prevents and the thing that detects is worse than one list.
+// The rule is NOT duplicated here. The actual PATTERN line is read out of
+// .githooks/commit-msg, which stays the single source of truth: a rule that can
+// drift between the thing that prevents and the thing that detects is worse
+// than one rule.
+//
+// That rule removes EVERY `Co-authored-by:` line, not only an agent's. See the
+// reasoning in the hook — briefly: matching agents by name ate a person whose
+// address contained "amp", matching by address needs a list that must grow
+// forever, and one missed entry is permanent.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -31,25 +38,27 @@ import { at, note as write, parseFlags } from "./lib/util.mjs";
 const note = (msg) => write(msg, "[attribution] ");
 
 /**
- * Pull the bot-address alternation out of the hook.
+ * Pull the rule itself out of the hook — not a copy of it, the actual line.
  *
  * Deliberately loud on failure: a check that cannot find its own pattern must
  * not quietly pass, or it becomes a green light that means "I did not look".
  */
-export function botPattern(hookSource) {
-  const m = /^BOTS='([^']+)'/m.exec(hookSource);
-  if (!m) throw new Error("cannot find the BOTS='…' line in .githooks/commit-msg");
+export function hookRule(hookSource) {
+  const m = /^PATTERN="(.+)"\s*$/m.exec(hookSource);
+  if (!m) throw new Error('cannot find the PATTERN="…" line in .githooks/commit-msg');
   return m[1];
 }
 
-/** The same rule the hook applies, anchored the same way. */
-export function attributionRe(bots) {
-  return new RegExp(
-    `^[ \\t]*(Co-authored-by:[ \\t]*.*(${bots})` +
-      `|(Claude|Cursor|Codex|Copilot)-(Code-)?Session:` +
-      `|(\u{1F916}[ \\t]*)?Generated with[ \\t]*\\[?(Claude Code|Cursor|Copilot|Codex|opencode))`,
-    "iu",
-  );
+/**
+ * The hook's POSIX ERE as a JavaScript regexp.
+ *
+ * `[[:space:]]` is the one construct grep understands and JS does not, so it is
+ * the one thing translated here. Everything else is shared syntax — which is
+ * why the rule can live in the hook alone, and why a test executes the real
+ * hook and asserts both agree rather than trusting this translation.
+ */
+export function attributionRe(ere) {
+  return new RegExp(ere.replace(/\[\[:space:\]\]/g, "[ \\t]"), "iu");
 }
 
 /** Offending lines in one message, empty when it is clean. */
@@ -95,7 +104,7 @@ function main(argv) {
 
   let re;
   try {
-    re = attributionRe(botPattern(readFileSync(at(".githooks", "commit-msg"), "utf8")));
+    re = attributionRe(hookRule(readFileSync(at(".githooks", "commit-msg"), "utf8")));
   } catch (err) {
     note(`cannot read the rule: ${err.message}`);
     return 2;
@@ -115,20 +124,21 @@ function main(argv) {
     .filter((c) => c.lines.length);
 
   if (bad.length) {
-    note(`${bad.length} of ${all.length} commit(s) carry AI-agent attribution:`);
+    note(`${bad.length} of ${all.length} commit(s) carry an attribution trailer:`);
     for (const { sha, subject, lines } of bad) {
       note(`  ${sha.slice(0, 8)} ${subject}`);
       for (const line of lines) note(`      ${line.trim()}`);
     }
     note("");
-    note("These put a bot in this repository's GitHub contributor list.");
+    note("A Co-authored-by trailer adds that account to this repository's");
+    note("GitHub contributor list. This project's commits have one author.");
     note("Install the hook so it cannot happen again:  npm run hooks:install");
     note("Then rewrite the messages before anyone clones — while it is still cheap:");
     note("  git rebase -i --root   (or git filter-repo --message-callback …)");
     return 1;
   }
 
-  if (!flags.has("--quiet")) note(`clean: no AI attribution in ${all.length} commit(s)`);
+  if (!flags.has("--quiet")) note(`clean: no attribution trailers in ${all.length} commit(s)`);
   return 0;
 }
 

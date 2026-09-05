@@ -9,7 +9,7 @@
 # including agents nobody has configured yet.
 #
 # It removes:
-#   Co-authored-by:  lines naming a known agent (a HUMAN co-author is kept)
+#   Co-authored-by:  EVERY such line — see the note on the rule below
 #   Claude-Session:  and similar session-link trailers
 #   "Generated with ..." / "🤖 Generated with ..." lines
 #
@@ -21,16 +21,29 @@ MSG="$1"
 
 TMP="$MSG.vibe-attr"
 
-# A co-author is identified by its BOT ADDRESS, not by a product name. Matching
-# names is doubly wrong: case-insensitively, "Amp" matches inside "example.com"
-# and deleted a human's trailer during testing — and "Claude" is a real person's
-# name, so a human collaborator called Claude must not be erased either.
+# THE RULE: this project's commits have exactly one author. Every
+# `Co-authored-by:` line is removed, agent or human.
 #
-# The other two lines are unambiguous and stay name-based, but anchored, so a
+# That is a deliberate choice, and a stricter one than it looks. Matching agents
+# by name was tried and was worse: case-insensitively, "Amp" matches inside
+# "example.com", which deleted a real person's trailer during testing. Matching
+# by bot ADDRESS fixed that, but left a list that has to grow every time a new
+# agent ships — and one missed entry is permanent, because a co-author trailer
+# puts that account in the repository's GitHub contributor list and only a
+# rewrite of published history takes it back out.
+#
+# Removing all of them needs no list, cannot fall behind, and cannot mistake a
+# person for a bot. The cost is that a genuine human collaborator is not
+# credited in the trailer either; credit them in the commit body instead.
+#
+# To keep human co-authors, restore the bot-address form:
+#   BOTS='noreply@anthropic\.com|@cursor\.com|Copilot@users\.noreply\.github\.com'
+#   ...(Co-authored-by:[[:space:]]*.*($BOTS)|...
+#
+# The session and "Generated with" lines stay name-based but anchored, so a
 # commit body that merely DISCUSSES attribution (this repo does, at length) is
 # not silently rewritten.
-BOTS='noreply@anthropic\.com|@cursor\.com|Cursor Agent|Copilot@users\.noreply\.github\.com|devin-ai-integration|google-labs-jules|@openai\.com|windsurf-agent|sourcegraph\.com'
-PATTERN="^[[:space:]]*(Co-authored-by:[[:space:]]*.*($BOTS)|(Claude|Cursor|Codex|Copilot)-(Code-)?Session:|(🤖[[:space:]]*)?Generated with[[:space:]]*\[?(Claude Code|Cursor|Copilot|Codex|opencode))"
+PATTERN="^[[:space:]]*(Co-authored-by:|(Claude|Cursor|Codex|Copilot)-(Code-)?Session:|(🤖[[:space:]]*)?Generated with[[:space:]]*\[?(Claude Code|Cursor|Copilot|Codex|opencode))"
 
 grep -viE "$PATTERN" "$MSG" > "$TMP" 2>/dev/null || true
 
